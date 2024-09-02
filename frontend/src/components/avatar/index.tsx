@@ -9,11 +9,7 @@ export interface IAvatarProps extends IClass {
 
 export function Avatar(props: IAvatarProps) {
   const sizeClass = () =>
-    props.size === "lg"
-      ? "size-24 text-4xl"
-      : props.size === "sm"
-      ? "size-6 text-xl"
-      : "size-12 text-2xl";
+    props.size === "lg" ? "size-24 text-4xl" : props.size === "sm" ? "size-6 text-xl" : "size-12 text-2xl";
 
   const cl = () => (props.class ? props.class : "");
 
@@ -22,7 +18,7 @@ export function Avatar(props: IAvatarProps) {
       <Match when={props.url}>
         <img
           class={`rounded-full border-2 ${sizeClass()} ${cl()}`}
-          style={{ "border-color": props.borderColor }}
+          style={{ "border-color": props.borderColor ?? "unset" }}
           src={props.url}
         />
       </Match>

@@ -17,6 +17,5 @@ ic-cdk = { workspace = true }
 ic-cdk-timers = { workspace = true }
 icrc-ledger-types = { workspace = true }
 num-bigint = { workspace = true }
-blake3 = { workspace = true }
 chrono = { workspace = true }
 futures = { workspace = true }

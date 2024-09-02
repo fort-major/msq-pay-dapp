@@ -2,6 +2,7 @@ use std::collections::{hash_map::Entry, BTreeMap, BTreeSet, HashMap};
 
 use candid::{CandidType, Nat, Principal};
 use serde::Deserialize;
+use sha2::Digest;
 
 use crate::utils::{
     calc_shop_subaccount, InvoiceId, ShopId, Timestamp, TransferTxn, DEFAULT_TTL,
@@ -180,19 +181,21 @@ impl InvoicesState {
     }
 
     fn generate_id(&mut self, salt: &[u8]) -> InvoiceId {
-        blake3::Hasher::new()
-            .update(&self.invoice_id_generator)
-            .update(ID_GENERATION_DOMAIN)
-            .update(salt)
-            .finalize()
-            .into()
+        let mut hasher = sha2::Sha256::new();
+
+        hasher.update(&self.invoice_id_generator);
+        hasher.update(ID_GENERATION_DOMAIN);
+        hasher.update(salt);
+
+        hasher.finalize().into()
     }
 
     fn make_invoice_memo(id: &InvoiceId) -> [u8; 32] {
-        blake3::Hasher::new()
-            .update(MEMO_GENERATION_DOMAIN)
-            .update(id)
-            .finalize()
-            .into()
+        let mut hasher = sha2::Sha256::new();
+
+        hasher.update(MEMO_GENERATION_DOMAIN);
+        hasher.update(id);
+
+        hasher.finalize().into()
     }
 }

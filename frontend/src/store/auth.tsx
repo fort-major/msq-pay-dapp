@@ -1,41 +1,14 @@
-import {
-  Accessor,
-  batch,
-  createContext,
-  createEffect,
-  createSignal,
-  onMount,
-  useContext,
-} from "solid-js";
+import { Accessor, batch, createContext, createSignal, onMount, useContext } from "solid-js";
 import { IChildren } from "../utils/types";
-import { ErrorCode, err, logInfo, randomWaitingMessage } from "../utils/error";
+import { ErrorCode, err, logInfo } from "../utils/error";
 import { Identity, Agent } from "@dfinity/agent";
 import { MsqClient, MsqIdentity } from "@fort-major/msq-client";
-import { Principal, debugStringify } from "../utils/encoding";
-import {
-  makeAgent,
-  makeAnonymousAgent,
-  newFmjActor,
-  newHumansActor,
-  newIcpActor,
-  newReputationActor,
-  optUnwrap,
-} from "../utils/backend";
-import { E8s } from "../utils/math";
-import { GetProfilesResponse } from "@/declarations/humans/humans.did";
-import { generateRegistrationPoW, PROOF_TTL_MS } from "@utils/security";
-
-export interface IMyBalance {
-  Hour: E8s;
-  Storypoint: E8s;
-  FMJ: E8s;
-  ICP: E8s;
-}
+import { makeAgent, makeAnonymousAgent } from "../utils/backend";
 
 export interface IAuthStoreContext {
   authorize: () => Promise<boolean>;
   deauthorize: () => Promise<boolean>;
-  identity: Accessor<Identity | undefined>;
+  identity: Accessor<(Identity & MsqIdentity) | undefined>;
   msqClient: Accessor<MsqClient | undefined>;
 
   agent: Accessor<Agent | undefined>;
@@ -49,11 +22,6 @@ export interface IAuthStoreContext {
   disabled: Accessor<boolean>;
   disable: () => void;
   enable: () => void;
-
-  editMyProfile: (name?: string) => Promise<void>;
-
-  myBalance: Accessor<IMyBalance | undefined>;
-  fetchMyBalance: () => Promise<void>;
 }
 
 const AuthContext = createContext<IAuthStoreContext>();
@@ -69,11 +37,10 @@ export function useAuth(): IAuthStoreContext {
 }
 
 export function AuthStore(props: IChildren) {
-  const [identity, setIdentity] = createSignal<Identity | undefined>();
+  const [identity, setIdentity] = createSignal<(Identity & MsqIdentity) | undefined>();
   const [msqClient, setMsqClient] = createSignal<MsqClient | undefined>();
   const [agent, setAgent] = createSignal<Agent | undefined>();
   const [anonymousAgent, setAnonymousAgent] = createSignal<Agent | undefined>();
-  const [myBalance, setMyBalance] = createSignal<IMyBalance | undefined>();
   const [disabled, setDisabled] = createSignal(false);
 
   onMount(async () => {
@@ -81,12 +48,6 @@ export function AuthStore(props: IChildren) {
 
     if (MsqClient.isSafeToResume()) {
       authorize();
-    }
-  });
-
-  createEffect(() => {
-    if (isAuthorized()) {
-      fetchMyBalance();
     }
   });
 
@@ -100,7 +61,6 @@ export function AuthStore(props: IChildren) {
     if (res) {
       batch(() => {
         setAgent(undefined);
-        setMyBalance(undefined);
         setIdentity(undefined);
       });
     }
@@ -117,7 +77,6 @@ export function AuthStore(props: IChildren) {
 
     const { msq, identity } = result.Ok;
 
-    storeHasMetaMask();
     setMsqClient(msq);
 
     await initIdentity(identity);
@@ -128,95 +87,12 @@ export function AuthStore(props: IChildren) {
   const initIdentity = async (identity: Identity & MsqIdentity) => {
     let a = await makeAgent(identity);
 
-    const humansActor = newHumansActor(a);
-    const reputationActor = newReputationActor(a);
-
-    // set initiator-only one-time init function
-    (window as any).init_once = () => {
-      return Promise.all([
-        humansActor.humans__init_once(),
-        reputationActor.reputation__init_once(),
-      ]);
-    };
-
-    const { entries: profiles } = await humansActor.humans__get_profiles({
-      ids: [identity.getPrincipal()],
-    });
-
-    if (!profiles[0][0]) {
-      logInfo(`First time here? Registering, please stand by...`);
-
-      const name = await identity.getPseudonym();
-      const [pow, nonce] = await generateRegistrationPoW(
-        identity.getPrincipal(),
-        Principal.fromText(import.meta.env.VITE_HUMANS_CANISTER_ID),
-        () => logInfo(randomWaitingMessage())
-      );
-
-      await humansActor.humans__register({
-        name: [name],
-        pow,
-        nonce,
-      });
-
-      logInfo("Registered!");
-    }
-
     batch(() => {
       setIdentity(identity);
       setAgent(a);
     });
 
     logInfo("Login successful");
-  };
-
-  const editMyProfile: IAuthStoreContext["editMyProfile"] = async (name) => {
-    assertAuthorized();
-
-    const n: [string] | [] = name ? [name] : [];
-
-    const humansActor = newHumansActor(agent()!);
-
-    await humansActor.humans__edit_profile({
-      new_name_opt: [n],
-    });
-  };
-
-  const fetchMyBalance = async () => {
-    assertAuthorized();
-    const a = agent()!;
-
-    const humansActor = newHumansActor(a);
-    const icpActor = newIcpActor(a);
-    const fmjActor = newFmjActor(a);
-
-    const myPrincipal = identity()!.getPrincipal();
-
-    const p = [
-      humansActor.humans__get_profiles({ ids: [myPrincipal] }),
-      icpActor.icrc1_balance_of({ owner: myPrincipal, subaccount: [] }),
-      fmjActor.icrc1_balance_of({ owner: myPrincipal, subaccount: [] }),
-    ];
-
-    const [{ entries: profiles }, icpBalance, fmjBalance] = (await Promise.all(
-      p
-    )) as [GetProfilesResponse, bigint, bigint];
-
-    const myProfile = optUnwrap(profiles[0]);
-
-    if (!myProfile) {
-      err(
-        ErrorCode.UNREACHEABLE,
-        "At this point the profile should already exist"
-      );
-    }
-
-    setMyBalance({
-      Hour: E8s.new(myProfile.hours_balance),
-      Storypoint: E8s.new(myProfile.storypoints_balance),
-      ICP: E8s.new(icpBalance),
-      FMJ: E8s.new(fmjBalance),
-    });
   };
 
   const isAuthorized = () => {
@@ -252,9 +128,6 @@ export function AuthStore(props: IChildren) {
         isReadyToFetch,
         assertReadyToFetch,
         assertAuthorized,
-        editMyProfile,
-        myBalance,
-        fetchMyBalance,
         disabled,
         disable: () => setDisabled(true),
         enable: () => setDisabled(false),
@@ -263,12 +136,4 @@ export function AuthStore(props: IChildren) {
       {props.children}
     </AuthContext.Provider>
   );
-}
-
-function retrieveHasMetaMask() {
-  return !!localStorage.getItem("fmj-has-metamask");
-}
-
-function storeHasMetaMask() {
-  localStorage.setItem("fmj-has-metamask", "true");
 }

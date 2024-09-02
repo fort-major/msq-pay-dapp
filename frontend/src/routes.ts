@@ -1,15 +1,9 @@
 import { Component } from "solid-js";
 import { useLocation } from "@solidjs/router";
 import { HomePage } from "@pages/home";
+import { ShopsPage } from "@pages/shops";
 import { MePage } from "@pages/me";
-import { TasksPage } from "@pages/tasks";
-import { CreateUpdateTaskPage } from "@pages/create-new-task";
-import { TaskPage } from "@pages/task";
-import { HumansPage } from "@pages/humans";
-import { FAQPage } from "@pages/faq";
-import { WorkReportsPage } from "@pages/work-reports";
-import { ReportWorkPage } from "@pages/report-work";
-import { ViewWorkReportPage } from "@pages/view-work-report";
+import { RegisterShopPage } from "@pages/shops/register";
 
 export interface IRoute {
   parent?: IRoute;
@@ -30,46 +24,23 @@ export const ROOT = route({
     "/": route({
       component: HomePage,
     }),
-    tasks: route({
+    shops: route({
       $: {
         "/": route({
-          component: TasksPage,
+          component: ShopsPage,
         }),
-        create: route({
-          component: CreateUpdateTaskPage,
-        }),
-        edit: route({
-          component: CreateUpdateTaskPage,
+        register: route({
+          component: RegisterShopPage,
         }),
       },
-    }),
-    task: route({
-      component: TaskPage,
-    }),
-    contributions: route({
-      $: {
-        "/": route({
-          component: WorkReportsPage,
-        }),
-        view: route({
-          component: ViewWorkReportPage,
-        }),
-        report: route({
-          component: ReportWorkPage,
-        }),
-      },
-    }),
-    humans: route({
-      component: HumansPage,
-    }),
-    faq: route({
-      component: FAQPage,
     }),
     me: route({
       component: MePage,
     }),
   },
 });
+
+// ---------------- DO NOT TOUCH BELOW ---------------
 
 // DO NOT REMOVE, THIS CHECKS IF THE ROUTES OF CORRECT TYPE, WHILE ALLOWING BETTER CODE COMPLETION
 const _ROUTES_StaticTypeCheck: IRoute = ROOT;
@@ -85,31 +56,18 @@ function enableFeatures(...k: (keyof IRouteFeatures)[]): {
   features: IRouteFeatures;
 } {
   return {
-    features: k.reduce(
-      (prev, cur) => Object.assign(prev, { [cur]: true }),
-      defaultFeatures()
-    ),
+    features: k.reduce((prev, cur) => Object.assign(prev, { [cur]: true }), defaultFeatures()),
   };
 }
 
-function mergeFeatures(
-  f1: IRouteFeatures | undefined,
-  f2: IRouteFeatures | undefined
-): IRouteFeatures {
+function mergeFeatures(f1: IRouteFeatures | undefined, f2: IRouteFeatures | undefined): IRouteFeatures {
   return {};
 }
 
-function setRouteInfo(
-  routeKey: string,
-  route: IRoute,
-  parent: IRoute | undefined
-) {
+function setRouteInfo(routeKey: string, route: IRoute, parent: IRoute | undefined) {
   if (parent) {
     route.parent = parent;
-    route.path =
-      parent.path === "/"
-        ? parent.path + routeKey
-        : parent.path + "/" + routeKey;
+    route.path = parent.path === "/" ? parent.path + routeKey : parent.path + "/" + routeKey;
     route.features = mergeFeatures(route.features, parent.features);
   } else {
     route.path = "/";

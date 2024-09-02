@@ -1,6 +1,7 @@
 use candid::{CandidType, Nat, Principal};
 use icrc_ledger_types::icrc1::account::Account;
 use serde::Deserialize;
+use sha2::Digest;
 
 pub const USD_DECIMALS: u8 = 8;
 pub const DEFAULT_TTL: u8 = 1;
@@ -36,9 +37,10 @@ pub struct TransferTxn {
 }
 
 pub fn calc_shop_subaccount(shop_id: ShopId) -> [u8; 32] {
-    blake3::Hasher::new()
-        .update(SHOP_ID_SUBACCOUNT_DOMAIN)
-        .update(&shop_id.to_le_bytes())
-        .finalize()
-        .into()
+    let mut hasher = sha2::Sha256::new();
+
+    hasher.update(SHOP_ID_SUBACCOUNT_DOMAIN);
+    hasher.update(&shop_id.to_le_bytes());
+
+    hasher.finalize().into()
 }
