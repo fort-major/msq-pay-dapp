@@ -1,0 +1,8 @@
+type ArchivedInvoice = variant { V0001 : record {} };
+type GetInvoiceRequest = record { idx : nat64 };
+type PushBatchRequest = record { batch : vec ArchivedInvoice };
+type Result = variant { Ok : ArchivedInvoice; Err : principal };
+service : {
+  get_invoice : (GetInvoiceRequest) -> (Result) query;
+  push_batch : (PushBatchRequest) -> (record {});
+}

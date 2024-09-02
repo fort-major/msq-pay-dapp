@@ -1,0 +1,94 @@
+type Account = record { owner : principal; subaccount : opt blob };
+type AddSupportedTokenRequest = record { token : Token };
+type CreateInvoiceRequest = record { shop_id : nat64; qty_usd : nat };
+type CreateInvoiceResponse = record { invoice_id : blob };
+type GetExchangeRatesRequest = record { timestamp : nat64 };
+type GetExchangeRatesResponse = record { rates : opt vec record { text; nat } };
+type GetInvoiceRequest = record { invoice_id : blob };
+type GetInvoiceResponse = record { invoice_opt : opt Invoice };
+type GetMyShopsResponse = record { shops : vec Shop };
+type GetSupportedTokensResponse = record { supported_tokens : vec Token };
+type InitArgs = record {
+  fee_collector_account : opt Account;
+  supported_tokens : vec Token;
+};
+type Invoice = record {
+  id : blob;
+  status : InvoiceStatus;
+  creator : principal;
+  exchange_rates_timestamp : nat64;
+  created_at : nat64;
+  shop_id : nat64;
+  qty_usd : nat;
+};
+type InvoiceStatus = variant {
+  Paid : record {
+    qty : nat;
+    token_id : principal;
+    timestamp : nat64;
+    exchange_rate : nat;
+  };
+  VerifyPayment;
+  Created : record { ttl : nat8 };
+};
+type RegisterShopRequest = record {
+  icon_base64 : text;
+  name : text;
+  description : text;
+  invoice_creators : vec principal;
+  referal : opt principal;
+};
+type RegisterShopResponse = record { shop_id : nat64 };
+type RemoveSupportedTokenRequest = record { ticker : text };
+type Result = variant { Ok : Invoice; Err : text };
+type Shop = record {
+  id : nat64;
+  icon_base64 : text;
+  owner : principal;
+  name : text;
+  description : text;
+  invoice_creators : vec principal;
+  referal : opt principal;
+};
+type Token = record {
+  id : principal;
+  fee : nat;
+  decimals : nat8;
+  ticker : text;
+};
+type UpdateShopRequest = record {
+  id : nat64;
+  new_name_opt : opt text;
+  new_icon_base64_opt : opt text;
+  new_owner_opt : opt principal;
+  new_description_opt : opt text;
+  new_invoice_creators_opt : opt vec principal;
+};
+type VerifyPaymentRequest = record {
+  invoice_id : blob;
+  block_idx : nat;
+  asset_id : principal;
+};
+type WithdrawProfitRequest = record {
+  to : Account;
+  qty : nat;
+  memo : opt blob;
+  shop_id : nat64;
+  asset_id : principal;
+};
+type WithdrawProfitResponse = record { block_idx : nat };
+service : (InitArgs) -> {
+  add_supported_token : (AddSupportedTokenRequest) -> (record {});
+  create_invoice : (CreateInvoiceRequest) -> (CreateInvoiceResponse);
+  get_exchange_rates : (GetExchangeRatesRequest) -> (
+      GetExchangeRatesResponse,
+    ) query;
+  get_invoice : (GetInvoiceRequest) -> (GetInvoiceResponse) query;
+  get_my_shops : (record {}) -> (GetMyShopsResponse) query;
+  get_supported_tokens : (record {}) -> (GetSupportedTokensResponse) query;
+  register_shop : (RegisterShopRequest) -> (RegisterShopResponse);
+  remove_supported_token : (RemoveSupportedTokenRequest) -> (record {});
+  update_shop : (UpdateShopRequest) -> (record {});
+  verify_payment : (VerifyPaymentRequest) -> (Result);
+  withdraw_profit : (WithdrawProfitRequest) -> (WithdrawProfitResponse);
+}
