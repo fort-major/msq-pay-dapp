@@ -5,7 +5,7 @@ use serde::Deserialize;
 
 use crate::utils::{Timestamp, USD};
 
-use super::types::{Ticker};
+use super::types::Ticker;
 
 #[derive(CandidType, Deserialize, Default, Clone)]
 pub struct ExchangeRatesState {
