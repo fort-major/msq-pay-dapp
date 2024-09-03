@@ -48,15 +48,16 @@ export function TextInput(props: ITextInputProps) {
   });
 
   return (
-    <div class="flex flex-col gap-1 flex-1">
+    <div class="relative flex flex-col gap-1 flex-1">
       <input
         type="text"
-        class="flex p-2 font-primary focus:outline-none text-sm leading-6 flex-1 bg-black text-white border-b-gray-140 border-b-[1px] focus:border-b-gray-190"
+        class="flex p-2 placeholder-gray-115 font-primary focus:outline-none text-sm leading-6 flex-1 bg-black border-b-gray-140 border-b-[1px] focus:border-b-gray-190"
         classList={{
           italic: props.value === "",
-          "shadow-errorRed": !!error(),
-          "bg-gray-190": d(),
-          "shadow-md": !props.noShadow,
+          "bg-gray-110": d(),
+          "text-white": !d(),
+          "text-gray-140": d(),
+          "shadow-sm": !props.noShadow,
         }}
         placeholder={props.placeholder ?? "Type here"}
         value={props.value}

@@ -4,6 +4,8 @@ import { ErrorCode, err, logInfo } from "../utils/error";
 import { Identity, Agent } from "@dfinity/agent";
 import { MsqClient, MsqIdentity } from "@fort-major/msq-client";
 import { makeAgent, makeAnonymousAgent } from "../utils/backend";
+import { useNavigate } from "@solidjs/router";
+import { ROOT } from "@/routes";
 
 export interface IAuthStoreContext {
   authorize: () => Promise<boolean>;
@@ -18,6 +20,7 @@ export interface IAuthStoreContext {
   isReadyToFetch: Accessor<boolean>;
   assertReadyToFetch: () => never | void;
   assertAuthorized: () => never | void;
+  autoAuth: () => TAutoAuthState;
 
   disabled: Accessor<boolean>;
   disable: () => void;
@@ -36,18 +39,34 @@ export function useAuth(): IAuthStoreContext {
   return ctx;
 }
 
+export type TAutoAuthState = "attepting" | "success" | "fail" | "unavailable";
+
 export function AuthStore(props: IChildren) {
   const [identity, setIdentity] = createSignal<(Identity & MsqIdentity) | undefined>();
   const [msqClient, setMsqClient] = createSignal<MsqClient | undefined>();
   const [agent, setAgent] = createSignal<Agent | undefined>();
   const [anonymousAgent, setAnonymousAgent] = createSignal<Agent | undefined>();
   const [disabled, setDisabled] = createSignal(false);
+  const [autoAuth, setAutoAuth] = createSignal<TAutoAuthState>("attepting");
 
   onMount(async () => {
     makeAnonymousAgent().then((a) => setAnonymousAgent(a));
 
     if (MsqClient.isSafeToResume()) {
-      authorize();
+      try {
+        await authorize();
+        setAutoAuth("success");
+      } catch (e) {
+        setAutoAuth("fail");
+
+        throw e;
+      }
+    } else {
+      if (!isAuthorized()) {
+        setAutoAuth("unavailable");
+      } else {
+        setAutoAuth("success");
+      }
     }
   });
 
@@ -131,6 +150,7 @@ export function AuthStore(props: IChildren) {
         disabled,
         disable: () => setDisabled(true),
         enable: () => setDisabled(false),
+        autoAuth,
       }}
     >
       {props.children}

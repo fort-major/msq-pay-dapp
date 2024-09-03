@@ -3,118 +3,144 @@ import { ErrorCode, err } from "./error";
 import { ONE_DAY_NS, ONE_HOUR_NS, ONE_MIN_NS } from "./types";
 
 export class E8s {
-  constructor(public val: bigint) {
+  constructor(public val: bigint, public decimals: number) {
     if (val < 0n) {
       err(ErrorCode.UNREACHEABLE, "Unable to negate E8s");
     }
   }
 
-  public static new(val: bigint) {
-    return new E8s(val);
+  public static base(decimals?: number) {
+    return 10n ** BigInt(decimals ?? 8);
+  }
+
+  private assertSameDecimals(b: E8s) {
+    if (this.decimals !== b.decimals) {
+      err(ErrorCode.UNREACHEABLE, "Invalid E8s operation: decimal point mismatch");
+    }
+  }
+
+  public static new(val: bigint, decimals?: number) {
+    return new E8s(val, decimals ? decimals : 8);
   }
 
   public eq(b: E8s): boolean {
-    return this.val == b.val;
+    this.assertSameDecimals(b);
+
+    return this.val === b.val;
   }
 
   public gt(b: E8s): boolean {
+    this.assertSameDecimals(b);
+
     return this.val > b.val;
   }
 
   public ge(b: E8s): boolean {
+    this.assertSameDecimals(b);
+
     return this.val >= b.val;
   }
 
   public lt(b: E8s): boolean {
+    this.assertSameDecimals(b);
+
     return this.val < b.val;
   }
 
   public le(b: E8s): boolean {
+    this.assertSameDecimals(b);
+
     return this.val <= b.val;
   }
 
-  public static zero(): E8s {
-    return new E8s(0n);
+  public static zero(decimals?: number): E8s {
+    return E8s.new(0n, decimals);
   }
 
-  public static one(): E8s {
-    return new E8s(1_0000_0000n);
+  public static one(decimals?: number): E8s {
+    return E8s.new(E8s.base(decimals), decimals);
   }
 
-  public static f0_05(): E8s {
-    return new E8s(500_0000n);
+  public static f0_05(decimals?: number): E8s {
+    return E8s.new(E8s.base(decimals) / 20n, decimals);
   }
 
-  public static f0_1(): E8s {
-    return new E8s(1000_0000n);
+  public static f0_1(decimals?: number): E8s {
+    return E8s.new(E8s.base(decimals) / 10n, decimals);
   }
 
-  public static f0_2(): E8s {
-    return new E8s(2000_0000n);
+  public static f0_2(decimals?: number): E8s {
+    return E8s.new(E8s.base(decimals) / 5n, decimals);
   }
 
-  public static f0_25(): E8s {
-    return new E8s(2500_0000n);
+  public static f0_25(decimals?: number): E8s {
+    return E8s.new(E8s.base(decimals) / 4n, decimals);
   }
 
-  public static f0_3(): E8s {
-    return new E8s(3000_0000n);
+  public static f0_3(decimals?: number): E8s {
+    return E8s.new((E8s.base(decimals) * 3n) / 10n, decimals);
   }
 
-  public static f0_33(): E8s {
-    return new E8s(3333_3333n);
+  public static f0_33(decimals?: number): E8s {
+    return E8s.new(E8s.base(decimals) / 3n, decimals);
   }
 
-  public static f0_4(): E8s {
-    return new E8s(4000_0000n);
+  public static f0_4(decimals?: number): E8s {
+    return E8s.new((E8s.base(decimals) * 2n) / 5n, decimals);
   }
 
-  public static f0_5(): E8s {
-    return new E8s(5000_0000n);
+  public static f0_5(decimals?: number): E8s {
+    return E8s.new(E8s.base(decimals) / 2n, decimals);
   }
 
-  public static f0_6(): E8s {
-    return new E8s(6000_0000n);
+  public static f0_6(decimals?: number): E8s {
+    return E8s.new((E8s.base(decimals) * 3n) / 5n, decimals);
   }
 
-  public static f0_67(): E8s {
-    return new E8s(6666_6667n);
+  public static f0_67(decimals?: number): E8s {
+    return E8s.new((E8s.base(decimals) * 2n) / 3n, decimals);
   }
 
-  public static f0_7(): E8s {
-    return new E8s(7000_0000n);
+  public static f0_7(decimals?: number): E8s {
+    return E8s.new((E8s.base(decimals) * 7n) / 10n, decimals);
   }
 
-  public static f0_75(): E8s {
-    return new E8s(7500_0000n);
+  public static f0_75(decimals?: number): E8s {
+    return E8s.new((E8s.base(decimals) * 3n) / 4n, decimals);
   }
 
-  public static f0_8(): E8s {
-    return new E8s(8000_0000n);
+  public static f0_8(decimals?: number): E8s {
+    return E8s.new((E8s.base(decimals) * 4n) / 5n, decimals);
   }
 
-  public static f0_9(): E8s {
-    return new E8s(9000_0000n);
+  public static f0_9(decimals?: number): E8s {
+    return E8s.new((E8s.base(decimals) * 9n) / 10n, decimals);
   }
 
   public add(b: E8s): E8s {
-    return new E8s(this.val + b.val);
+    this.assertSameDecimals(b);
+
+    return E8s.new(this.val + b.val, this.decimals);
   }
 
   public sub(b: E8s): E8s {
-    return new E8s(this.val - b.val);
+    this.assertSameDecimals(b);
+
+    return E8s.new(this.val - b.val, this.decimals);
   }
 
   public mul(b: E8s): E8s {
-    return new E8s((this.val * b.val) / 1_0000_0000n);
+    this.assertSameDecimals(b);
+
+    return E8s.new((this.val * b.val) / E8s.base(this.decimals), this.decimals);
   }
 
   public div(b: E8s): E8s {
-    return new E8s((this.val * 1_0000_0000n) / b.val);
+    return E8s.new((this.val * E8s.base(this.decimals)) / b.val, this.decimals);
   }
 
   public toString() {
-    return tokensToStr(this.val, 8);
+    return tokensToStr(this.val, this.decimals);
   }
 
   public static fromString(s: string): E8s {
@@ -137,32 +163,23 @@ export class E8s {
     return this.val;
   }
 
-  public static fromBigIntBase(x: bigint) {
-    return new E8s(x * 1_0000_0000n);
+  public static fromBigIntBase(x: bigint, decimals?: number) {
+    return E8s.new(x * E8s.base(decimals), decimals);
   }
 
   public toBigIntBase() {
-    return this.val / 1_0000_0000n;
+    return this.val / E8s.base(this.decimals);
   }
 
-  public static fromPercentNum(p: number) {
-    return new E8s((BigInt(Math.floor(p)) * 1_0000_0000n) / 100n);
+  public static fromPercentNum(p: number, decimals?: number) {
+    return E8s.new((BigInt(Math.floor(p)) * E8s.base(decimals)) / 100n, decimals);
   }
 
   public toPercentNum() {
-    return Number((this.val * 100n) / 1_0000_0000n);
+    return Number((this.val * 100n) / E8s.base(this.decimals));
   }
 
   public toPercent() {
     return E8s.new(this.val * 100n);
   }
-}
-
-export function repToCooldownNs(rep: E8s): bigint | undefined {
-  if (rep.ge(E8s.fromBigIntBase(500n))) return 0n;
-  if (rep.ge(E8s.fromBigIntBase(100n))) return ONE_MIN_NS * 10n;
-  if (rep.ge(E8s.fromBigIntBase(50n))) return ONE_HOUR_NS;
-  if (rep.ge(E8s.fromBigIntBase(20n))) return ONE_DAY_NS;
-
-  return undefined;
 }

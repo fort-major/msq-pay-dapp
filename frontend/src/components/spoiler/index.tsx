@@ -1,12 +1,11 @@
 import { EIconKind, Icon } from "@components/icon";
-import { MdPreview } from "@components/md-preview";
-import { Title } from "@components/title";
+import { COLORS } from "@utils/colors";
 import { eventHandler } from "@utils/security";
-import { createSignal, JSX, Show } from "solid-js";
+import { IChildren } from "@utils/types";
+import { createSignal, Show } from "solid-js";
 
-export interface ISpoilerProps {
+export interface ISpoilerProps extends IChildren {
   header: string;
-  text: string;
   defaultExpanded?: boolean;
   class?: string;
 }
@@ -20,21 +19,11 @@ export function Spoiler(props: ISpoilerProps) {
 
   return (
     <div class="flex flex-col self-stretch gap-5">
-      <div
-        onClick={handleHeaderClick}
-        class="flex justify-between self-stretch items-baseline cursor-pointer gap-5"
-      >
-        <h4 class="flex-grow font-primary font-semibold text-black text-2xl">
-          {props.header}
-        </h4>
-        <Icon
-          class="min-w-6"
-          kind={expanded() ? EIconKind.ChevronUp : EIconKind.ChevronDown}
-        />
+      <div onClick={handleHeaderClick} class="flex justify-between self-stretch items-baseline cursor-pointer gap-5">
+        <h4 class="flex-grow font-primary font-semibold text-white text-md">{props.header}</h4>
+        <Icon class="min-w-6" color={COLORS.white} kind={expanded() ? EIconKind.ChevronUp : EIconKind.ChevronDown} />
       </div>
-      <Show when={expanded()}>
-        <MdPreview content={props.text} />
-      </Show>
+      <Show when={expanded()}>{props.children}</Show>
     </div>
   );
 }

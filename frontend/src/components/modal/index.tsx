@@ -29,17 +29,10 @@ export function Modal(props: IModalProps) {
 
   return (
     <Portal ref={ref} mount={mount}>
-      <div class="flex flex-col gap-4 p-4 shadow-lg bg-white mt-36 md:min-w-[550px]">
+      <div class="flex flex-col gap-4 rounded-3xl p-6 shadow-lg text-white bg-black mt-36 md:min-w-[550px]">
         <div class="flex items-center justify-between">
-          <p class="font-primary font-bold text-2xl">
-            {props.title ?? "Dialog"}
-          </p>
-          <Icon
-            kind={EIconKind.CancelCircle}
-            color={COLORS.gray[150]}
-            onClick={handleClose}
-            class="cursor-pointer"
-          />
+          <p class="font-primary font-bold text-2xl">{props.title ?? "Dialog"}</p>
+          <Icon kind={EIconKind.CancelCircle} color={COLORS.gray[150]} onClick={handleClose} class="cursor-pointer" />
         </div>
         {props.children}
       </div>

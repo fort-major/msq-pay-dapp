@@ -9,4 +9,5 @@ pub struct Token {
     pub ticker: Ticker,
     pub decimals: u8,
     pub fee: Nat,
+    pub logo_src: String,
 }

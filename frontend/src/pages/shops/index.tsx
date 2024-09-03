@@ -3,15 +3,26 @@ import { Btn } from "@components/btn";
 import { EIconKind } from "@components/icon";
 import { Page } from "@components/page";
 import { Shop } from "@components/shop";
-import { A } from "@solidjs/router";
+import { A, useNavigate } from "@solidjs/router";
+import { useAuth } from "@store/auth";
 import { useShops } from "@store/shops";
 import { COLORS } from "@utils/colors";
-import { createMemo, For } from "solid-js";
+import { createEffect, createMemo, For, on } from "solid-js";
 
 export const ShopsPage = () => {
+  const { autoAuth } = useAuth();
   const { shops } = useShops();
+  const navigate = useNavigate();
 
   const shopIds = createMemo(() => Object.keys(shops));
+
+  createEffect(
+    on(autoAuth, (status) => {
+      if (status === "fail" || status === "unavailable") {
+        navigate(ROOT.path);
+      }
+    })
+  );
 
   const shopsFallback = () => (
     <div class="flex flex-col gap-2">
@@ -34,7 +45,7 @@ export const ShopsPage = () => {
           <p class="font-normal text-gray-140 text-lg">and start accepting cryptocurrencies in no time!</p>
         </div>
         <A href={ROOT.$.shops.$.register.path}>
-          <Btn text="Register" class="bg-orange" icon={EIconKind.Plus} iconColor={COLORS.white} />
+          <Btn text="Register" bgColor={COLORS.orange} icon={EIconKind.Plus} iconColor={COLORS.white} />
         </A>
       </div>
       <div class="flex flex-col gap-6">

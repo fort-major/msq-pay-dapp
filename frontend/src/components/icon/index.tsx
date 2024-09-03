@@ -108,20 +108,10 @@ export function Icon(props: IIconProps) {
   return (
     <svg
       width={
-        props.size
-          ? props.size
-          : props.kind === EIconKind.StarEmpty ||
-            props.kind === EIconKind.StarFilled
-          ? 28
-          : 24
+        props.size ? props.size : props.kind === EIconKind.StarEmpty || props.kind === EIconKind.StarFilled ? 28 : 24
       }
       height={props.size ?? 24}
-      viewBox={`0 0 ${
-        props.kind === EIconKind.StarEmpty ||
-        props.kind === EIconKind.StarFilled
-          ? "28"
-          : "24"
-      } 24`}
+      viewBox={`0 0 ${props.kind === EIconKind.StarEmpty || props.kind === EIconKind.StarFilled ? "28" : "24"} 24`}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       onMouseEnter={handleMouseEnter}
@@ -373,10 +363,7 @@ export function Icon(props: IIconProps) {
 
         <Match when={props.kind === EIconKind.MetaMask}>
           <g clip-path="url(#clip0_52_2921)">
-            <path
-              d="M21.5364 2.5L12.9546 8.93459L14.5504 5.1425L21.5364 2.5Z"
-              fill="#E17726"
-            />
+            <path d="M21.5364 2.5L12.9546 8.93459L14.5504 5.1425L21.5364 2.5Z" fill="#E17726" />
             <path
               d="M2.48369 2.5076L9.45096 5.14298L10.9663 8.98478L2.48369 2.5076ZM18.0828 16.1846L21.8759 16.2577L20.5503 20.8211L15.9219 19.5298L18.0828 16.1846ZM5.91713 16.1846L8.07002 19.5298L3.44948 20.8211L2.1319 16.2577L5.91713 16.1846Z"
               fill="#E27625"
@@ -543,12 +530,7 @@ export function Icon(props: IIconProps) {
           </g>
           <defs>
             <clipPath id="clip0_153_2947">
-              <rect
-                width="20"
-                height="20"
-                fill="white"
-                transform="translate(2 2)"
-              />
+              <rect width="20" height="20" fill="white" transform="translate(2 2)" />
             </clipPath>
           </defs>
         </Match>

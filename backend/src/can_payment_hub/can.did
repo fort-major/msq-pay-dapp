@@ -55,6 +55,7 @@ type Token = record {
   fee : nat;
   decimals : nat8;
   ticker : text;
+  logo_src : text;
 };
 type UpdateShopRequest = record {
   id : nat64;

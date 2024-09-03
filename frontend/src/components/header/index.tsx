@@ -58,8 +58,9 @@ export function Header(props: IHeaderProps) {
             <Btn
               text="Sign In"
               icon={EIconKind.MetaMask}
-              class="bg-chartreuse rounded-full h-[50px]"
+              class="rounded-full h-[50px]"
               onClick={authorize}
+              bgColor={COLORS.chartreuse}
             />
           </Match>
           <Match when={isAuthorized()}>

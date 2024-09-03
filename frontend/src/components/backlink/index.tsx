@@ -1,6 +1,6 @@
 import { ROOT } from "@/routes";
 import { EIconKind, Icon } from "@components/icon";
-import { A, useNavigate } from "@solidjs/router";
+import { A, useLocation, useNavigate } from "@solidjs/router";
 import { COLORS } from "@utils/colors";
 import { eventHandler } from "@utils/security";
 import { IClass } from "@utils/types";
@@ -21,7 +21,7 @@ export function Backlink(props: IBacklinkProps) {
     try {
       navigate(-1);
     } catch (_) {
-      navigate(ROOT.$.tasks.path);
+      navigate(ROOT.path);
     }
   });
 
@@ -31,15 +31,8 @@ export function Backlink(props: IBacklinkProps) {
       classList={{ [props.class!]: !!props.class }}
       onClick={handleBack}
     >
-      <Icon
-        kind={EIconKind.ArrowRight}
-        class="rotate-180"
-        color={COLORS.gray[150]}
-        size={18}
-      />
-      <p class="font-primary font-light text-sm underline text-gray-150">
-        Back
-      </p>
+      <Icon kind={EIconKind.ArrowRight} class="rotate-180" color={COLORS.gray[150]} size={18} />
+      <p class="font-primary font-light text-sm underline text-gray-150">Back</p>
     </div>
   );
 }

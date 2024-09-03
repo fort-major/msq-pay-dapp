@@ -47,9 +47,8 @@ export const ImgUploader = (props: IImgUploaderProps) => {
   return (
     <div class="flex flex-col gap-2">
       <label class="cursor-pointer flex flex-row gap-2 justify-between items-center" for={`img-upload-${id()}`}>
-        <div class="flex font-semibold flex-nowrap items-center justify-center gap-2 px-5 py-2 rounded-full h-[50px] bg-orange">
-          <span>Select</span>
-          <Icon kind={EIconKind.DocEdit} color={COLORS.white} />
+        <div class="flex font-semibold flex-nowrap items-center justify-center gap-2 px-5 py-2 rounded-full h-[40px] bg-orange">
+          <span>Select a file</span>
         </div>
         <p class="font-normal text-gray-190 text-md">
           <Show when={fileName()} fallback={"File not selected"}>
