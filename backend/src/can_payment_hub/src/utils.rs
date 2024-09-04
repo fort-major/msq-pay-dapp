@@ -1,11 +1,20 @@
 use std::{str::FromStr, time::Duration};
 
 use candid::{Nat, Principal};
+use futures::{future::join_all, FutureExt, TryFutureExt};
 use ic_cdk::{
-    api::{call::CallResult, management_canister::main::raw_rand, time},
+    api::{
+        call::{call_with_payment, CallResult},
+        management_canister::main::raw_rand,
+        time,
+    },
     call,
 };
 use ic_cdk_timers::set_timer;
+use ic_xrc_types::{
+    Asset, AssetClass, ExchangeRate, ExchangeRateMetadata, GetExchangeRateRequest,
+    GetExchangeRateResult,
+};
 use icrc_ledger_types::{
     icrc::generic_value::ICRC3Value,
     icrc1::{
@@ -15,27 +24,90 @@ use icrc_ledger_types::{
     icrc3::blocks::{BlockWithId, GetBlocksRequest, GetBlocksResult},
 };
 use shared::{
-    exchange_rates::types::FetchExchangeRatesResponse,
+    e8s::EDs,
     supported_tokens::types::Token,
     utils::{Timestamp, TransferTxn, EXCHANGE_RATES_CANISTER_ID},
 };
 
 use crate::STATE;
 
+const XRC_ATTACHED_CYCLES: u64 = 1_000_000_000u64;
+const XRC_QUOTE_ASSET: &str = "USD";
+
 pub fn set_immediate(func: impl FnOnce() + 'static) {
     set_timer(Duration::ZERO, func);
 }
 
-pub async fn fetch_exchange_rates() -> FetchExchangeRatesResponse {
-    let response: (FetchExchangeRatesResponse,) = call(
-        Principal::from_str(EXCHANGE_RATES_CANISTER_ID).unwrap(),
-        "get_latest",
-        (),
-    )
-    .await
-    .expect("Exchange rate fetch failed");
+pub async fn fetch_exchange_rates() -> Vec<ExchangeRate> {
+    let (should_mock, tickers) = STATE.with_borrow(|s| {
+        let should_mock = s.exchange_rates.should_mock();
+        let tickers: Vec<_> = s.supported_tokens.get().map(|it| it.ticker).collect();
 
-    response.0
+        (should_mock, tickers)
+    });
+
+    if should_mock {
+        return tickers
+            .into_iter()
+            .map(|it| ExchangeRate {
+                base_asset: Asset {
+                    symbol: it.0.to_string(),
+                    class: AssetClass::Cryptocurrency,
+                },
+                quote_asset: Asset {
+                    symbol: XRC_QUOTE_ASSET.to_string(),
+                    class: AssetClass::FiatCurrency,
+                },
+                timestamp: time(),
+                rate: time() % 1_0000_0000u64,
+                metadata: ExchangeRateMetadata {
+                    decimals: 8,
+                    base_asset_num_queried_sources: 10,
+                    base_asset_num_received_rates: 10,
+                    quote_asset_num_queried_sources: 10,
+                    quote_asset_num_received_rates: 10,
+                    standard_deviation: 1000u64,
+                    forex_timestamp: None,
+                },
+            })
+            .collect();
+    }
+
+    let xrc_id = Principal::from_text(EXCHANGE_RATES_CANISTER_ID).expect("Invalid xrc canister id");
+
+    let futures = tickers.into_iter().map(|it| {
+        let args = GetExchangeRateRequest {
+            base_asset: Asset {
+                symbol: it.0.to_string(),
+                class: AssetClass::Cryptocurrency,
+            },
+            quote_asset: Asset {
+                symbol: XRC_QUOTE_ASSET.to_string(),
+                class: AssetClass::FiatCurrency,
+            },
+            timestamp: None,
+        };
+
+        call_with_payment::<(GetExchangeRateRequest,), (GetExchangeRateResult,)>(
+            xrc_id,
+            "get_exchange_rate",
+            (args,),
+            XRC_ATTACHED_CYCLES,
+        )
+    });
+
+    let results = join_all(futures).await;
+
+    results
+        .into_iter()
+        .filter_map(|it| match it {
+            Ok((resp,)) => match resp {
+                Ok(rate) => Some(rate),
+                _ => None,
+            },
+            _ => None,
+        })
+        .collect()
 }
 
 #[derive(Clone, Copy)]
@@ -116,6 +188,7 @@ impl ICRC1CanisterClient {
 pub fn icrc3_block_to_transfer_txn(
     block: &BlockWithId,
     token_id: Principal,
+    token_decimals: u8,
 ) -> Result<TransferTxn, String> {
     match &block.block {
         ICRC3Value::Map(block_fields) => {
@@ -242,8 +315,8 @@ pub fn icrc3_block_to_transfer_txn(
                     Ok(TransferTxn {
                         from,
                         to,
-                        fee: fee.clone(),
-                        qty: amount.clone(),
+                        fee: EDs::new(fee.0.clone(), token_decimals),
+                        qty: EDs::new(amount.0.clone(), token_decimals),
                         token_id,
                         memo,
                     })

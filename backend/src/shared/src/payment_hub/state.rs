@@ -1,18 +1,18 @@
 use std::collections::{hash_map::Entry, BTreeMap, HashMap};
 
 use candid::CandidType;
+use ic_xrc_types::ExchangeRate;
 use icrc_ledger_types::icrc1::account::Account;
+use num_bigint::BigUint;
 use serde::Deserialize;
 
 use crate::{
-    exchange_rates::{
-        state::ExchangeRatesState,
-        types::{ExchangeRateExternal, Ticker},
-    },
+    e8s::EDs,
+    exchange_rates::{state::ExchangeRatesState, types::Ticker},
     invoices::{state::InvoicesState, types::InvoiceStatus},
     shops::state::ShopsState,
     supported_tokens::state::SupportedTokensState,
-    utils::{f64_to_usd, Timestamp, RECYCLING_TTL},
+    utils::{Timestamp, RECYCLING_TTL},
 };
 
 #[derive(CandidType, Deserialize, Default)]
@@ -93,7 +93,7 @@ impl State {
 
     pub fn update_exchange_rates(
         &mut self,
-        exchange_rates_external: Vec<ExchangeRateExternal>,
+        exchange_rates_external: Vec<ExchangeRate>,
         timestamp: Timestamp,
     ) {
         // if there are no invoices which refer to the previosly actual exchange rates - remove those rates from memory
@@ -114,17 +114,12 @@ impl State {
         self.exchange_rates.last_updated_at = timestamp;
 
         for rate in exchange_rates_external {
-            let tickers = rate.1.split("/").collect::<Vec<_>>();
-            let ticker_to = tickers.get(1).unwrap();
-
-            if ticker_to.to_uppercase() != "USD" {
-                continue;
-            }
-
-            let ticker_from = tickers.get(0).unwrap();
+            let ticker_from = rate.base_asset.symbol;
 
             if self.supported_tokens.contains_ticker(&ticker_from) {
-                let usd_rate = f64_to_usd(rate.2);
+                let usd_rate = EDs::new(BigUint::from(rate.rate), rate.metadata.decimals as u8)
+                    .to_decimals(8)
+                    .to_const::<8>();
 
                 match self
                     .exchange_rates

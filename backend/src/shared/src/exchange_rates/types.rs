@@ -1,12 +1,8 @@
 use std::borrow::Borrow;
 
-use candid::{CandidType, Nat};
+use candid::CandidType;
 use serde::Deserialize;
 use tinystr::TinyStr16;
-
-#[derive(CandidType, Deserialize)]
-pub struct ExchangeRateExternal(pub (Nat, Nat), pub String, pub f64);
-pub type FetchExchangeRatesResponse = Vec<ExchangeRateExternal>;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct Ticker(pub TinyStr16);

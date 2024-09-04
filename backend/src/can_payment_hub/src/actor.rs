@@ -11,6 +11,7 @@ use ic_cdk::{
 use icrc_ledger_types::icrc1::{account::Account, transfer::TransferArg};
 use serde::Deserialize;
 use shared::{
+    e8s::EDs,
     exchange_rates::api::{GetExchangeRatesRequest, GetExchangeRatesResponse},
     invoices::{
         api::{
@@ -21,8 +22,10 @@ use shared::{
     },
     payment_hub::state::State,
     shops::api::{
-        GetMyShopsRequest, GetMyShopsResponse, RegisterShopRequest, RegisterShopResponse,
-        UpdateShopRequest, UpdateShopRespose, WithdrawProfitRequest, WithdrawProfitResponse,
+        GetMyReferredShopsRequest, GetMyReferredShopsResponse, GetMyShopsRequest,
+        GetMyShopsResponse, GetShopByIdRequest, GetShopByIdResponse, RegisterShopRequest,
+        RegisterShopResponse, UpdateShopRequest, UpdateShopRespose, WithdrawProfitRequest,
+        WithdrawProfitResponse,
     },
     supported_tokens::{
         api::{
@@ -50,11 +53,16 @@ thread_local! {
 struct InitArgs {
     supported_tokens: Vec<Token>,
     fee_collector_account: Option<Account>,
+    should_mock_exchange_rates: bool,
 }
 
 #[init]
 fn init_hook(args: InitArgs) {
-    STATE.with_borrow_mut(|s| s.set_fee_collector_account(args.fee_collector_account));
+    STATE.with_borrow_mut(|s| {
+        s.set_fee_collector_account(args.fee_collector_account);
+        s.exchange_rates
+            .set_should_mock(args.should_mock_exchange_rates);
+    });
 
     init_timers();
     init_supported_tokens(args.supported_tokens);
@@ -131,7 +139,7 @@ fn create_invoice(req: CreateInvoiceRequest) -> CreateInvoiceResponse {
 
 #[update]
 async fn verify_payment(req: VerifyPaymentRequest) -> VerifyPaymentResponse {
-    let (exchange_rates_timestamp, ttl) = STATE.with_borrow_mut(|s| {
+    let (exchange_rates_timestamp, ttl, decimals) = STATE.with_borrow_mut(|s| {
         let invoice = s
             .invoices
             .all_invoices
@@ -147,15 +155,22 @@ async fn verify_payment(req: VerifyPaymentRequest) -> VerifyPaymentResponse {
             _ => return Err("The invoice is already paid".to_string()),
         };
 
+        let decimals = s
+            .supported_tokens
+            .get_by_id(&req.asset_id)
+            .ok_or("Token not found")?
+            .fee
+            .decimals;
+
         invoice.status = InvoiceStatus::VerifyPayment;
 
-        Ok((invoice.exchange_rates_timestamp, ttl))
+        Ok((invoice.exchange_rates_timestamp, ttl, decimals))
     })?;
 
     let token = ICRC1CanisterClient::new(req.asset_id);
     let block = token.find_block(req.block_idx).await?;
 
-    let txn = icrc3_block_to_transfer_txn(&block, req.asset_id)?;
+    let txn = icrc3_block_to_transfer_txn(&block, req.asset_id, decimals)?;
 
     let ticker = STATE
         .with_borrow(|s| s.supported_tokens.ticker_by_token_id(&txn.token_id))
@@ -186,7 +201,10 @@ async fn verify_payment(req: VerifyPaymentRequest) -> VerifyPaymentResponse {
             if should_delete_outdated {
                 STATE.with_borrow_mut(|s| {
                     s.exchange_rates
-                        .delete_outdated(&invoice.exchange_rates_timestamp)
+                        .delete_outdated(&invoice.exchange_rates_timestamp);
+
+                    let shop = s.shops.shops.get_mut(&invoice.shop_id).unwrap();
+                    shop.total_earned_usd += &invoice.qty_usd;
                 });
             }
 
@@ -241,9 +259,35 @@ pub fn get_my_shops(_req: GetMyShopsRequest) -> GetMyShopsResponse {
     GetMyShopsResponse { shops }
 }
 
+#[query]
+pub fn get_my_referred_shops(_req: GetMyReferredShopsRequest) -> GetMyReferredShopsResponse {
+    let shops = STATE.with_borrow(|s| s.shops.get_shops_by_referral(&caller()));
+
+    GetMyReferredShopsResponse { shops }
+}
+
+#[query]
+pub fn get_shop_by_id(req: GetShopByIdRequest) -> GetShopByIdResponse {
+    let shop = STATE.with_borrow(|s| s.shops.shops.get(&req.id).map(|it| it.as_pub()));
+
+    GetShopByIdResponse { shop }
+}
+
 #[update]
 pub async fn withdraw_profit(req: WithdrawProfitRequest) -> WithdrawProfitResponse {
     // TODO: validate request
+
+    let owner = STATE.with_borrow(|s| {
+        s.shops
+            .shops
+            .get(&req.shop_id)
+            .expect("Shop not found")
+            .owner
+    });
+
+    if owner != caller() {
+        panic!("Access Denied");
+    }
 
     let system_fee = STATE
         .with_borrow(|s| {
@@ -253,46 +297,49 @@ pub async fn withdraw_profit(req: WithdrawProfitRequest) -> WithdrawProfitRespon
         })
         .expect("Unsupported token");
 
-    if req.qty < system_fee.clone() * Nat::from(5u64) {
+    let min_qty = &system_fee * 6u64;
+    let qty = req.qty.to_dynamic().to_decimals(system_fee.decimals);
+
+    if qty < min_qty {
         panic!("Insufficient funds");
     }
 
-    let (fee_collector_account_opt, referal_opt) = STATE.with_borrow(|s| {
+    let (fee_collector_account_opt, referral_opt) = STATE.with_borrow(|s| {
         let fee_collector = s.fee_collector_account;
-        let referal = s.shops.get_referal(&req.shop_id);
+        let referral = s.shops.get_referral(&req.shop_id);
 
-        (fee_collector, referal)
+        (fee_collector, referral)
     });
 
     // fmj gets 3% fee from the withdrawn amount, referal gets 20% fee from the fmj fee
-    let (qty, fmj_fee, referal_fee) = match (fee_collector_account_opt, referal_opt) {
+    let (withdraw_qty, fmj_fee, referal_fee) = match (fee_collector_account_opt, referral_opt) {
         (Some(_), Some(_)) => {
-            let qty = req.qty.clone() * Nat::from(97u64) / Nat::from(100u64);
-            let fmj_fee = (req.qty.clone() - qty.clone()) * Nat::from(80u64) / Nat::from(100u64);
-            let referal_fee = req.qty - qty.clone() - fmj_fee.clone();
+            let withdraw_qty = &qty * 97u64 / 100u64;
+            let fmj_fee = (&qty - &withdraw_qty) * 80u64 / 100u64;
+            let referal_fee = &qty - &withdraw_qty - &fmj_fee;
 
-            (qty, fmj_fee, referal_fee)
+            (withdraw_qty, fmj_fee, referal_fee)
         }
         (None, Some(_)) => {
-            let qty = req.qty.clone() * Nat::from(97u64) / Nat::from(100u64);
-            let fmj_fee = Nat::from(0u64);
-            let referal_fee = req.qty - qty.clone() - fmj_fee.clone();
+            let withdraw_qty = &qty * 97u64 / 100u64;
+            let fmj_fee = EDs::from((0u64, qty.decimals));
+            let referal_fee = &qty - &withdraw_qty;
 
-            (qty, fmj_fee, referal_fee)
+            (withdraw_qty, fmj_fee, referal_fee)
         }
         (Some(_), None) => {
-            let qty = req.qty.clone() * Nat::from(97u64) / Nat::from(100u64);
-            let fmj_fee = req.qty - qty.clone();
-            let referal_fee = Nat::from(0u64);
+            let withdraw_qty = &qty * 97u64 / 100u64;
+            let fmj_fee = &qty - &withdraw_qty;
+            let referal_fee = EDs::from((0u64, qty.decimals));
 
-            (qty, fmj_fee, referal_fee)
+            (withdraw_qty, fmj_fee, referal_fee)
         }
         (None, None) => {
-            let qty = req.qty.clone();
-            let fmj_fee = Nat::from(0u64);
-            let referal_fee = Nat::from(0u64);
+            let withdraw_qty = qty;
+            let fmj_fee = EDs::from((0u64, withdraw_qty.decimals));
+            let referal_fee = EDs::from((0u64, withdraw_qty.decimals));
 
-            (qty, fmj_fee, referal_fee)
+            (withdraw_qty, fmj_fee, referal_fee)
         }
     };
 
@@ -304,10 +351,10 @@ pub async fn withdraw_profit(req: WithdrawProfitRequest) -> WithdrawProfitRespon
             .icrc1_transfer(TransferArg {
                 from_subaccount: Some(shop_subaccount),
                 to: req.to,
-                fee: Some(system_fee.clone()),
+                fee: Some((&system_fee).into()),
                 memo: req.memo,
                 created_at_time: None,
-                amount: qty.clone(),
+                amount: (withdraw_qty - &system_fee).into(),
             })
             .await;
 
@@ -338,10 +385,10 @@ pub async fn withdraw_profit(req: WithdrawProfitRequest) -> WithdrawProfitRespon
                 .icrc1_transfer(TransferArg {
                     from_subaccount: Some(shop_subaccount),
                     to: fee_collector_account,
-                    fee: Some(system_fee.clone()),
+                    fee: Some((&system_fee).into()),
                     memo: None,
                     created_at_time: None,
-                    amount: fmj_fee,
+                    amount: (fmj_fee - &system_fee).into(),
                 })
                 .await;
         }
@@ -355,20 +402,34 @@ pub async fn withdraw_profit(req: WithdrawProfitRequest) -> WithdrawProfitRespon
     };
 
     let referal_fee_transfer_future = async {
-        if let Some(referal) = referal_opt {
-            let _result = token
+        if let Some(referral) = referral_opt {
+            let result = token
                 .icrc1_transfer(TransferArg {
                     from_subaccount: Some(shop_subaccount),
                     to: Account {
-                        owner: referal,
+                        owner: referral,
                         subaccount: None,
                     },
-                    fee: Some(system_fee.clone()),
+                    fee: Some((&system_fee).into()),
                     memo: None,
                     created_at_time: None,
-                    amount: referal_fee,
+                    amount: (&referal_fee - &system_fee).into(),
                 })
                 .await;
+
+            if result.is_ok() {
+                STATE.with_borrow_mut(|s| {
+                    let earnings = s
+                        .shops
+                        .referral_to_shops
+                        .get_mut(&referral)
+                        .unwrap()
+                        .get_mut(&req.shop_id)
+                        .unwrap();
+
+                    *earnings += referal_fee.to_decimals(8).to_const();
+                })
+            }
         }
 
         if false {

@@ -3,28 +3,37 @@ use std::collections::{BTreeMap, HashMap};
 use candid::CandidType;
 use serde::Deserialize;
 
-use crate::utils::{Timestamp, USD};
+use crate::{e8s::E8s, utils::Timestamp};
 
 use super::types::Ticker;
 
 #[derive(CandidType, Deserialize, Default, Clone)]
 pub struct ExchangeRatesState {
+    pub mock: bool,
     pub last_updated_at: Timestamp,
-    pub rates: HashMap<Timestamp, BTreeMap<Ticker, USD>>,
+    pub rates: HashMap<Timestamp, BTreeMap<Ticker, E8s>>,
 }
 
 impl ExchangeRatesState {
-    pub fn get_exchange_rate(&self, updated_at: &Timestamp, ticker: &Ticker) -> &USD {
+    pub fn should_mock(&self) -> bool {
+        self.mock
+    }
+
+    pub fn set_should_mock(&mut self, mock: bool) {
+        self.mock = mock;
+    }
+
+    pub fn get_exchange_rate(&self, updated_at: &Timestamp, ticker: &Ticker) -> &E8s {
         self.rates.get(updated_at).unwrap().get(ticker).unwrap()
     }
 
-    pub fn get_current_rates(&self) -> &BTreeMap<Ticker, USD> {
+    pub fn get_current_rates(&self) -> &BTreeMap<Ticker, E8s> {
         self.rates
             .get(&self.last_updated_at)
             .expect("Current rates are not ready yet, try again later...")
     }
 
-    pub fn get_rates(&self, timestamp: Timestamp) -> Option<&BTreeMap<Ticker, USD>> {
+    pub fn get_rates(&self, timestamp: Timestamp) -> Option<&BTreeMap<Ticker, E8s>> {
         let mut keys = Vec::new();
 
         for key in self.rates.keys() {

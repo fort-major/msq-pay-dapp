@@ -1,18 +1,22 @@
-use std::collections::{btree_map::Entry, BTreeMap, BTreeSet};
+use std::collections::{
+    btree_map::{self, Entry},
+    BTreeMap, BTreeSet,
+};
 
 use candid::{CandidType, Principal};
 
 use serde::Deserialize;
 
-use crate::utils::ShopId;
+use crate::{e8s::E8s, utils::ShopId};
 
-use super::types::Shop;
+use super::types::{ReferredShop, Shop};
 
 #[derive(CandidType, Deserialize, Default)]
 pub struct ShopsState {
     pub shop_id_generator: ShopId,
     pub shops: BTreeMap<ShopId, Shop>,
     pub owner_to_shops: BTreeMap<Principal, BTreeSet<ShopId>>,
+    pub referral_to_shops: BTreeMap<Principal, BTreeMap<ShopId, E8s>>,
 }
 
 impl ShopsState {
@@ -22,7 +26,7 @@ impl ShopsState {
         name: String,
         description: String,
         icon_base64: String,
-        referal: Option<Principal>,
+        referral_opt: Option<Principal>,
         caller: Principal,
     ) -> ShopId {
         let id = self.generate_shop_id();
@@ -33,10 +37,12 @@ impl ShopsState {
             name,
             description,
             icon_base64,
-            referal,
+            referral: referral_opt,
+            total_earned_usd: E8s::zero(),
         };
 
         self.shops.insert(id, shop);
+
         match self.owner_to_shops.entry(caller) {
             Entry::Occupied(mut e) => {
                 e.get_mut().insert(id);
@@ -48,6 +54,20 @@ impl ShopsState {
                 e.insert(s);
             }
         };
+
+        if let Some(referral) = referral_opt {
+            match self.referral_to_shops.entry(referral) {
+                Entry::Occupied(mut e) => {
+                    e.get_mut().insert(id, E8s::zero());
+                }
+                Entry::Vacant(e) => {
+                    let mut s = BTreeMap::new();
+                    s.insert(id, E8s::zero());
+
+                    e.insert(s);
+                }
+            }
+        }
 
         id
     }
@@ -109,10 +129,25 @@ impl ShopsState {
         Ok(())
     }
 
-    pub fn get_referal(&self, shop_id: &ShopId) -> Option<Principal> {
+    pub fn get_referral(&self, shop_id: &ShopId) -> Option<Principal> {
         let shop = self.shops.get(shop_id)?;
 
-        shop.referal
+        shop.referral
+    }
+
+    pub fn get_shops_by_referral(&self, referral: &Principal) -> Vec<ReferredShop> {
+        if let Some(ids) = self.referral_to_shops.get(referral) {
+            ids.iter()
+                .map(|(id, earnings)| {
+                    self.shops
+                        .get(id)
+                        .map(|it| it.as_referred(earnings.clone()))
+                        .unwrap()
+                })
+                .collect()
+        } else {
+            Vec::new()
+        }
     }
 
     pub fn get_shops_by_owner(&self, owner: &Principal) -> Vec<Shop> {

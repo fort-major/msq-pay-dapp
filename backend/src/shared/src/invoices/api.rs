@@ -1,7 +1,10 @@
 use candid::{CandidType, Nat, Principal};
 use serde::Deserialize;
 
-use crate::utils::{InvoiceId, ShopId, USD};
+use crate::{
+    e8s::E8s,
+    utils::{InvoiceId, ShopId},
+};
 
 use super::types::Invoice;
 
@@ -18,7 +21,7 @@ pub struct GetInvoiceResponse {
 #[derive(CandidType, Deserialize)]
 pub struct CreateInvoiceRequest {
     pub shop_id: ShopId,
-    pub qty_usd: USD,
+    pub qty_usd: E8s,
 }
 
 #[derive(CandidType, Deserialize)]

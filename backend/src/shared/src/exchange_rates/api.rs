@@ -1,7 +1,7 @@
 use candid::CandidType;
 use serde::Deserialize;
 
-use crate::utils::{Timestamp, USD};
+use crate::{e8s::E8s, utils::Timestamp};
 
 use super::types::Ticker;
 
@@ -12,5 +12,5 @@ pub struct GetExchangeRatesRequest {
 
 #[derive(CandidType, Deserialize)]
 pub struct GetExchangeRatesResponse {
-    pub rates: Option<Vec<(Ticker, USD)>>,
+    pub rates: Option<Vec<(Ticker, E8s)>>,
 }

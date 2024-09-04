@@ -19,3 +19,4 @@ icrc-ledger-types = { workspace = true }
 num-bigint = { workspace = true }
 chrono = { workspace = true }
 futures = { workspace = true }
+ic-xrc-types = { workspace = true }

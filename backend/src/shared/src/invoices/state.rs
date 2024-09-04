@@ -4,9 +4,12 @@ use candid::{CandidType, Nat, Principal};
 use serde::Deserialize;
 use sha2::Digest;
 
-use crate::utils::{
-    calc_shop_subaccount, InvoiceId, ShopId, Timestamp, TransferTxn, DEFAULT_TTL,
-    ID_GENERATION_DOMAIN, MEMO_GENERATION_DOMAIN, USD,
+use crate::{
+    e8s::E8s,
+    utils::{
+        calc_shop_subaccount, InvoiceId, ShopId, Timestamp, TransferTxn, DEFAULT_TTL,
+        ID_GENERATION_DOMAIN, MEMO_GENERATION_DOMAIN,
+    },
 };
 
 use super::types::{Invoice, InvoiceStatus};
@@ -20,7 +23,7 @@ pub struct InvoicesState {
     pub active_invoices: HashMap<Timestamp, BTreeSet<InvoiceId>>,
     pub inactive_invoices: BTreeSet<InvoiceId>,
 
-    pub total_processed_in_usd: USD,
+    pub total_processed_in_usd: E8s,
 }
 
 impl InvoicesState {
@@ -31,7 +34,7 @@ impl InvoicesState {
 
     pub fn create(
         &mut self,
-        qty_usd: Nat,
+        qty_usd: E8s,
         shop_id: ShopId,
         timestamp: Timestamp,
         exchange_rates_timestamp: Timestamp,
@@ -70,7 +73,7 @@ impl InvoicesState {
         &mut self,
         invoice_id: &InvoiceId,
         transfer_txn: TransferTxn,
-        exchange_rate: Nat,
+        exchange_rate: E8s,
         this_canister_id: Principal,
         now: Timestamp,
     ) -> Result<(Invoice, bool), String> {
@@ -116,12 +119,21 @@ impl InvoicesState {
         }
 
         // check if the sum sent is enough to cover the invoice
-        let expected_qty_usd = invoice.qty_usd.clone();
-        let actual_qty_usd = exchange_rate.clone() * transfer_txn.qty.clone();
+        let rate_eds = exchange_rate
+            .to_dynamic()
+            .to_decimals(transfer_txn.qty.decimals);
 
-        if actual_qty_usd < invoice.qty_usd {
+        let expected_qty_usd = invoice
+            .qty_usd
+            .clone()
+            .to_dynamic()
+            .to_decimals(transfer_txn.qty.decimals);
+
+        let actual_qty_usd = &rate_eds * &transfer_txn.qty;
+
+        if actual_qty_usd < expected_qty_usd {
             return Err(format!(
-                "Insufficient transfer: expected (usd e8s) {}, actual (usd e8s) {}",
+                "Insufficient transfer: expected ${}, actual ${}",
                 expected_qty_usd, actual_qty_usd
             ));
         }
@@ -130,7 +142,7 @@ impl InvoicesState {
             timestamp: now,
             token_id: transfer_txn.token_id,
             qty: transfer_txn.qty,
-            exchange_rate,
+            exchange_rate: rate_eds,
         };
 
         // delete the invoice from the list of active invoices (which is segregated by exchange rate used)

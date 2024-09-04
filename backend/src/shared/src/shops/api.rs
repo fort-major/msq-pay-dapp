@@ -4,9 +4,9 @@ use candid::{CandidType, Nat, Principal};
 use icrc_ledger_types::icrc1::{account::Account, transfer::Memo};
 use serde::Deserialize;
 
-use crate::utils::ShopId;
+use crate::{e8s::E8s, utils::ShopId};
 
-use super::types::Shop;
+use super::types::{PubShop, ReferredShop, Shop};
 
 #[derive(CandidType, Deserialize)]
 pub struct RegisterShopRequest {
@@ -48,11 +48,29 @@ pub struct WithdrawProfitRequest {
     pub shop_id: ShopId,
     pub asset_id: Principal,
     pub to: Account,
-    pub qty: Nat,
+    pub qty: E8s,
     pub memo: Option<Memo>,
 }
 
 #[derive(CandidType, Deserialize)]
 pub struct WithdrawProfitResponse {
     pub block_idx: Nat,
+}
+
+#[derive(CandidType, Deserialize)]
+pub struct GetMyReferredShopsRequest {}
+
+#[derive(CandidType, Deserialize)]
+pub struct GetMyReferredShopsResponse {
+    pub shops: Vec<ReferredShop>,
+}
+
+#[derive(CandidType, Deserialize)]
+pub struct GetShopByIdRequest {
+    pub id: ShopId,
+}
+
+#[derive(CandidType, Deserialize)]
+pub struct GetShopByIdResponse {
+    pub shop: Option<PubShop>,
 }
