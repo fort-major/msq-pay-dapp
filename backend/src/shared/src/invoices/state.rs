@@ -1,6 +1,6 @@
 use std::collections::{hash_map::Entry, BTreeMap, BTreeSet, HashMap};
 
-use candid::{CandidType, Nat, Principal};
+use candid::{CandidType, Principal};
 use serde::Deserialize;
 use sha2::Digest;
 

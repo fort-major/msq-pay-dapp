@@ -4,20 +4,30 @@ import { ErrorCode, err } from "../utils/error";
 import { createStore, Store } from "solid-js/store";
 import { useAuth } from "./auth";
 import { Principal } from "@dfinity/principal";
-import { E8s } from "@utils/math";
+import { E8s, EDs } from "@utils/math";
 import { bytesToHex } from "@utils/encoding";
 import { IcrcLedgerCanister, IcrcMetadataResponseEntries } from "@dfinity/ledger-icrc";
-import { newPaymentHubActor, opt } from "@utils/backend";
+import { newPaymentHubActor, opt, optUnwrap } from "@utils/backend";
 import { Token } from "@/declarations/payment_hub/payment_hub.did";
 import { ShopId } from "./shops";
 import { calcShopSubaccount } from "@utils/security";
+import { nowNs } from "@utils/common";
 
 export type TPrincipalStr = string;
 export type TSubaccountStr = string;
 export type TSubaccount = Uint8Array;
+export type TTicker = string;
+
+export interface IToken {
+  id: Principal;
+  fee: EDs;
+  ticker: TTicker;
+  logoSrc: string;
+  xrcTicker: TTicker;
+}
 
 export interface ITokensStoreContext {
-  supportedTokens: Store<Partial<Record<TPrincipalStr, Token>>>;
+  supportedTokens: Store<Partial<Record<TPrincipalStr, IToken>>>;
   fetchSupportedTokens: () => Promise<void>;
 
   balances: Store<
@@ -27,6 +37,9 @@ export interface ITokensStoreContext {
   fetchBalanceOf: (tokenId: Principal, owner: Principal, subaccount?: TSubaccount) => Promise<void>;
 
   withdrawProfit: (shopId: ShopId, tokenId: Principal, qty: bigint) => Promise<void>;
+
+  exchangeRates: Store<Partial<Record<TTicker, E8s>>>;
+  fetchExchangeRates: () => Promise<void>;
 }
 
 const TokensContext = createContext<ITokensStoreContext>();
@@ -46,12 +59,14 @@ export function TokensStore(props: IChildren) {
 
   const [supportedTokens, setSupportedTokens] = createStore<ITokensStoreContext["supportedTokens"]>();
   const [balances, setBalances] = createStore<ITokensStoreContext["balances"]>();
+  const [exchangeRates, setExchangeRates] = createStore<ITokensStoreContext["exchangeRates"]>();
 
   createEffect(
     on(anonymousAgent, (a) => {
       if (!a) return;
 
       fetchSupportedTokens();
+      fetchExchangeRates();
     })
   );
 
@@ -87,7 +102,15 @@ export function TokensStore(props: IChildren) {
     const { supported_tokens } = await actor.get_supported_tokens({});
 
     for (let token of supported_tokens) {
-      setSupportedTokens(token.id.toText(), token);
+      const iToken: IToken = {
+        id: token.id,
+        ticker: token.ticker,
+        xrcTicker: token.xrc_ticker,
+        logoSrc: token.logo_src,
+        fee: EDs.new(token.fee.val, token.fee.decimals),
+      };
+
+      setSupportedTokens(iToken.id.toText(), iToken);
     }
   };
 
@@ -110,6 +133,24 @@ export function TokensStore(props: IChildren) {
     fetchBalanceOf(tokenId, Principal.fromText(import.meta.env.VITE_PAYMENT_HUB_CANISTER_ID), shopSubaccount);
   };
 
+  const fetchExchangeRates: ITokensStoreContext["fetchExchangeRates"] = async () => {
+    assertReadyToFetch();
+
+    const actor = newPaymentHubActor(anonymousAgent()!);
+    const resp = await actor.get_exchange_rates({ timestamp: nowNs() });
+
+    const rates = optUnwrap(resp.rates);
+
+    if (!rates) {
+      console.error("No exchage rates for the current timestamp found!");
+      return;
+    }
+
+    for (let [ticker, rate] of rates) {
+      setExchangeRates(ticker, E8s.new(rate));
+    }
+  };
+
   return (
     <TokensContext.Provider
       value={{
@@ -119,6 +160,8 @@ export function TokensStore(props: IChildren) {
         supportedTokens,
         fetchSupportedTokens,
         withdrawProfit,
+        exchangeRates,
+        fetchExchangeRates,
       }}
     >
       {props.children}

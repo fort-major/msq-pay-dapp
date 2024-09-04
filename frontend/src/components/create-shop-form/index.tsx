@@ -17,7 +17,7 @@ export interface ICreateShopFormProps {
 }
 
 export const CreateShopForm = (props: ICreateShopFormProps) => {
-  const { shops, fetchMyShops, registerShop, updateShopInfo } = useShops();
+  const { myShops, fetchMyShops, registerShop, updateShopInfo } = useShops();
   const { isAuthorized } = useAuth();
   const navigate = useNavigate();
 
@@ -26,7 +26,7 @@ export const CreateShopForm = (props: ICreateShopFormProps) => {
   const [logoBase64Src, setLogoBase64Src] = createSignal(Result.Err<string>(""));
   const [referral, setReferral] = createSignal(Result.Err<string>(""));
 
-  const shop = () => (props.id ? shops[props.id.toString()] : undefined);
+  const shop = () => (props.id ? myShops[props.id.toString()] : undefined);
 
   onMount(() => {
     if (isAuthorized() && props.id !== undefined && !shop()) fetchMyShops();

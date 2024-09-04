@@ -6,19 +6,31 @@ import { createStore, Store } from "solid-js/store";
 import { useAuth } from "./auth";
 import { Principal } from "@dfinity/principal";
 import { calcShopSubaccount } from "@utils/security";
+import { E8s } from "@utils/math";
 
 export type ShopId = bigint;
 export type ShopIdStr = string;
 
-export interface IShop {
+export interface IMyShop {
   id: bigint;
   iconBase64Src: string;
   owner: Principal;
   name: string;
   description: string;
   invoiceCreators: Array<Principal>;
-  referal?: Principal;
+  referral?: Principal;
   subaccount: Uint8Array;
+  totalEarnedUsd: E8s;
+}
+
+export interface IMyReferredShop {
+  id: bigint;
+  iconBase64Src: string;
+  name: string;
+  description: string;
+  referral: Principal;
+  subaccount: Uint8Array;
+  referralEarningsUsd: E8s;
 }
 
 export type IRegisterShopArgs = {
@@ -39,8 +51,10 @@ export type IUpdateShopInfoArgs = {
 };
 
 export interface IShopsStoreContext {
-  shops: Store<Partial<Record<ShopIdStr, IShop>>>;
+  myShops: Store<Partial<Record<ShopIdStr, IMyShop>>>;
+  myReferredShops: Store<Partial<Record<ShopIdStr, IMyReferredShop>>>;
   fetchMyShops: () => Promise<void>;
+  fetchMyReferredShops: () => Promise<void>;
   registerShop: (args: IRegisterShopArgs) => Promise<void>;
   updateShopInfo: (args: IUpdateShopInfoArgs) => Promise<void>;
 }
@@ -60,7 +74,8 @@ export function useShops(): IShopsStoreContext {
 export function ShopsStore(props: IChildren) {
   const { assertAuthorized, agent, disable, enable } = useAuth();
 
-  const [shops, setShops] = createStore<IShopsStoreContext["shops"]>();
+  const [myShops, setMyShops] = createStore<IShopsStoreContext["myShops"]>();
+  const [myReferredShops, setMyReferredShops] = createStore<IShopsStoreContext["myReferredShops"]>();
 
   createEffect(
     on(agent, (agent) => {
@@ -77,18 +92,40 @@ export function ShopsStore(props: IChildren) {
     const { shops } = await actor.get_my_shops({});
 
     for (let shop of shops) {
-      const iShop: IShop = {
+      const iShop: IMyShop = {
         id: shop.id,
         name: shop.name,
         description: shop.description,
         iconBase64Src: shop.icon_base64,
         owner: shop.owner,
         invoiceCreators: shop.invoice_creators,
-        referal: optUnwrap(shop.referal),
+        referral: optUnwrap(shop.referral),
         subaccount: await calcShopSubaccount(shop.id),
+        totalEarnedUsd: E8s.new(shop.total_earned_usd),
       };
 
-      setShops(shop.id.toString(), iShop);
+      setMyShops(shop.id.toString(), iShop);
+    }
+  };
+
+  const fetchMyReferredShops: IShopsStoreContext["fetchMyReferredShops"] = async () => {
+    assertAuthorized();
+
+    const actor = newPaymentHubActor(agent()!);
+    const { shops } = await actor.get_my_referred_shops({});
+
+    for (let shop of shops) {
+      const iShop: IMyReferredShop = {
+        id: shop.id,
+        name: shop.name,
+        description: shop.description,
+        iconBase64Src: shop.icon_base64,
+        referral: shop.referral,
+        subaccount: await calcShopSubaccount(shop.id),
+        referralEarningsUsd: E8s.new(shop.referral_earnings_usd),
+      };
+
+      setMyReferredShops(shop.id.toString(), iShop);
     }
   };
 
@@ -140,7 +177,9 @@ export function ShopsStore(props: IChildren) {
   };
 
   return (
-    <ShopsContext.Provider value={{ shops, registerShop, updateShopInfo, fetchMyShops }}>
+    <ShopsContext.Provider
+      value={{ myShops, myReferredShops, registerShop, updateShopInfo, fetchMyShops, fetchMyReferredShops }}
+    >
       {props.children}
     </ShopsContext.Provider>
   );

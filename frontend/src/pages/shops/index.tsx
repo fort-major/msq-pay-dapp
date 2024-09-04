@@ -11,10 +11,10 @@ import { createEffect, createMemo, For, on } from "solid-js";
 
 export const ShopsPage = () => {
   const { autoAuth } = useAuth();
-  const { shops } = useShops();
+  const { myShops } = useShops();
   const navigate = useNavigate();
 
-  const shopIds = createMemo(() => Object.keys(shops));
+  const shopIds = createMemo(() => Object.keys(myShops));
 
   createEffect(
     on(autoAuth, (status) => {
@@ -52,7 +52,7 @@ export const ShopsPage = () => {
         <p class="font-semibold text-white text-6xl">Your Shops</p>
 
         <For fallback={shopsFallback()} each={shopIds()}>
-          {(id) => <Shop info={shops[id]!} />}
+          {(id) => <Shop info={myShops[id]!} />}
         </For>
       </div>
     </Page>

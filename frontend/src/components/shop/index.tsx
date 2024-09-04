@@ -1,3 +1,4 @@
+import { ROOT } from "@/routes";
 import { BalanceOf } from "@components/balance-of";
 import { Btn } from "@components/btn";
 import { Copyable } from "@components/copyable";
@@ -6,17 +7,19 @@ import { Spoiler } from "@components/spoiler";
 import { TextInput } from "@components/text-input";
 import { TransferOwnershipModal } from "@components/transfer-ownership-modal";
 import { Principal } from "@dfinity/principal";
+import { useNavigate } from "@solidjs/router";
 import { useAuth } from "@store/auth";
-import { IShop, useShops } from "@store/shops";
+import { IMyReferredShop, IMyShop, useShops } from "@store/shops";
 import { useTokens } from "@store/tokens";
 import { COLORS } from "@utils/colors";
 import { logInfo } from "@utils/error";
+import { EDs } from "@utils/math";
 import { calcShopSubaccount } from "@utils/security";
 import { Result } from "@utils/types";
 import { createMemo, createResource, createSignal, For, Show } from "solid-js";
 
 export interface IShopProps {
-  info: IShop;
+  info: IMyShop;
 }
 
 export const Shop = (props: IShopProps) => {
@@ -38,7 +41,7 @@ export const Shop = (props: IShopProps) => {
       const balance = balanceOf(info.id, shopAccountOwner(), shopSubaccount());
       if (balance === undefined) continue;
 
-      if (balance >= info.fee * 5n) return true;
+      if (EDs.new(balance, info.fee.decimals).ge(info.fee.mulNum(6n))) return true;
     }
 
     return false;
@@ -93,11 +96,13 @@ export const Shop = (props: IShopProps) => {
       const balance = balanceOf(info.id, shopAccountOwner(), shopSubaccount());
       if (balance === undefined) continue;
 
-      if (balance < info.fee * 5n) continue;
+      const b = EDs.new(balance, info.fee.decimals);
+
+      if (b.lt(info.fee.mulNum(6n))) continue;
 
       logInfo(`Withdrawing ${info.ticker}`);
 
-      await withdrawProfit(props.info.id, info.id, balance - info.fee);
+      await withdrawProfit(props.info.id, info.id, b.sub(info.fee).val);
 
       logInfo(`Success!`);
     }
@@ -114,15 +119,18 @@ export const Shop = (props: IShopProps) => {
   return (
     <>
       <div class="flex flex-col border border-gray-115 rounded-3xl p-6 gap-10">
-        <div class="flex items-start justify-between">
-          <div class="flex gap-4 items-start">
-            <img src={props.info.iconBase64Src} class="rounded-full h-12 w-12" />
-            <div class="flex flex-col gap-2">
-              <p class="font-semibold text-white text-2xl">{props.info.name}</p>
-              <p class="font-normal text-gray-140 text-sm">{props.info.description}</p>
-            </div>
-          </div>
-          <Copyable before="ID:" text={props.info.id.toString()} />
+        <ShopHeader
+          id={props.info.id}
+          iconSrc={props.info.iconBase64Src}
+          name={props.info.name}
+          description={props.info.description}
+          editable
+        />
+        <div class="flex justify-between items-baseline">
+          <p class="text-gray-140 text-sm">Total Earned</p>
+          <p class="text-white font-semibold text-2xl">
+            ${props.info.totalEarnedUsd.toDynamic().toDecimals(2).toString()}
+          </p>
         </div>
         <div class="flex flex-col gap-4">
           <div class="flex flex-col gap-1">
@@ -205,5 +213,64 @@ export const Shop = (props: IShopProps) => {
         />
       </Show>
     </>
+  );
+};
+
+export interface IReferredShopProps {
+  info: IMyReferredShop;
+}
+
+export const ReferredShop = (props: IReferredShopProps) => {
+  return (
+    <div class="flex flex-col border border-gray-115 rounded-3xl p-6 gap-10">
+      <ShopHeader
+        id={props.info.id}
+        iconSrc={props.info.iconBase64Src}
+        name={props.info.name}
+        description={props.info.description}
+      />
+
+      <div class="flex justify-between items-baseline">
+        <p class="text-gray-140 text-sm">Collected fees</p>
+        <p class="text-white font-semibold text-2xl">
+          ${props.info.referralEarningsUsd.toDynamic().toDecimals(2).toString()}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+export const ShopHeader = (props: {
+  id: bigint;
+  iconSrc: string;
+  name: string;
+  description: string;
+  editable?: boolean;
+}) => {
+  const navigate = useNavigate();
+
+  const handleEditClick = () => {
+    navigate(`${ROOT.$.shops.$.register.path}?id=${props.id.toString()}`);
+  };
+
+  return (
+    <div class="flex items-start justify-between">
+      <div class="flex gap-4 items-start">
+        <img src={props.iconSrc} class="rounded-full h-12 w-12" />
+        <div class="flex flex-col gap-2">
+          <p class="font-semibold text-white text-2xl">{props.name}</p>
+          <p class="font-normal text-gray-140 text-sm">{props.description}</p>
+        </div>
+      </div>
+      <div class="flex flex-col gap-4">
+        <Copyable before="ID:" text={props.id.toString()} />
+        <Show when={props.editable}>
+          <div class="flex gap-2 items-center cursor-pointer" onClick={handleEditClick}>
+            <p class="text-sm font-semibold text-gray-140">Edit</p>
+            <Icon kind={EIconKind.Edit} color={COLORS.gray[140]} hoverColor={COLORS.white} class="cursor-pointer" />
+          </div>
+        </Show>
+      </div>
+    </div>
   );
 };

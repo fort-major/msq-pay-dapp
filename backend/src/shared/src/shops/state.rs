@@ -1,5 +1,5 @@
 use std::collections::{
-    btree_map::{self, Entry},
+    btree_map::{Entry},
     BTreeMap, BTreeSet,
 };
 

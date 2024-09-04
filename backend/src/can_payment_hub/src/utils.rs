@@ -1,7 +1,7 @@
-use std::{str::FromStr, time::Duration};
+use std::time::Duration;
 
 use candid::{Nat, Principal};
-use futures::{future::join_all, FutureExt, TryFutureExt};
+use futures::{future::join_all, FutureExt};
 use ic_cdk::{
     api::{
         call::{call_with_payment, CallResult},
@@ -41,7 +41,11 @@ pub fn set_immediate(func: impl FnOnce() + 'static) {
 pub async fn fetch_exchange_rates() -> Vec<ExchangeRate> {
     let (should_mock, tickers) = STATE.with_borrow(|s| {
         let should_mock = s.exchange_rates.should_mock();
-        let tickers: Vec<_> = s.supported_tokens.get().map(|it| it.ticker).collect();
+        let tickers: Vec<_> = s
+            .supported_tokens
+            .get()
+            .map(|it| (it.ticker, it.xrc_ticker))
+            .collect();
 
         (should_mock, tickers)
     });
@@ -49,9 +53,9 @@ pub async fn fetch_exchange_rates() -> Vec<ExchangeRate> {
     if should_mock {
         return tickers
             .into_iter()
-            .map(|it| ExchangeRate {
+            .map(|(ticker, xrc_ticker)| ExchangeRate {
                 base_asset: Asset {
-                    symbol: it.0.to_string(),
+                    symbol: ticker.0.to_string(),
                     class: AssetClass::Cryptocurrency,
                 },
                 quote_asset: Asset {
@@ -75,10 +79,10 @@ pub async fn fetch_exchange_rates() -> Vec<ExchangeRate> {
 
     let xrc_id = Principal::from_text(EXCHANGE_RATES_CANISTER_ID).expect("Invalid xrc canister id");
 
-    let futures = tickers.into_iter().map(|it| {
+    let futures = tickers.into_iter().map(|(ticker, xrc_ticker)| {
         let args = GetExchangeRateRequest {
             base_asset: Asset {
-                symbol: it.0.to_string(),
+                symbol: xrc_ticker.0.to_string(),
                 class: AssetClass::Cryptocurrency,
             },
             quote_asset: Asset {
@@ -88,25 +92,33 @@ pub async fn fetch_exchange_rates() -> Vec<ExchangeRate> {
             timestamp: None,
         };
 
+        let base_symbol = ticker.0.to_string();
+
         call_with_payment::<(GetExchangeRateRequest,), (GetExchangeRateResult,)>(
             xrc_id,
             "get_exchange_rate",
             (args,),
             XRC_ATTACHED_CYCLES,
         )
+        .then(|it| async {
+            match it {
+                Ok((resp,)) => match resp {
+                    Ok(mut rate) => {
+                        rate.base_asset.symbol = base_symbol;
+
+                        Some(rate)
+                    }
+                    _ => None,
+                },
+                _ => None,
+            }
+        })
     });
 
-    let results = join_all(futures).await;
-
-    results
+    join_all(futures)
+        .await
         .into_iter()
-        .filter_map(|it| match it {
-            Ok((resp,)) => match resp {
-                Ok(rate) => Some(rate),
-                _ => None,
-            },
-            _ => None,
-        })
+        .filter_map(|it| it)
         .collect()
 }
 

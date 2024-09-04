@@ -1,4 +1,4 @@
-use candid::{CandidType, Nat, Principal};
+use candid::{CandidType, Principal};
 use icrc_ledger_types::icrc1::account::Account;
 use serde::Deserialize;
 use sha2::Digest;

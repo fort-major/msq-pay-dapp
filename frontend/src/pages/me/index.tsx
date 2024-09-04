@@ -5,17 +5,20 @@ import { Btn } from "@components/btn";
 import { Copyable } from "@components/copyable";
 import { EIconKind, Icon } from "@components/icon";
 import { Page } from "@components/page";
+import { ReferredShop } from "@components/shop";
 import { useNavigate } from "@solidjs/router";
 import { useAuth } from "@store/auth";
+import { useShops } from "@store/shops";
 import { useTokens } from "@store/tokens";
 import { COLORS } from "@utils/colors";
 import { logInfo } from "@utils/error";
 import { eventHandler } from "@utils/security";
-import { createEffect, createMemo, createResource, For, on, Show } from "solid-js";
+import { createEffect, createMemo, createResource, For, on, onMount, Show } from "solid-js";
 
 export const MePage = () => {
-  const { isAuthorized, identity, agent, deauthorize, autoAuth } = useAuth();
+  const { isAuthorized, identity, deauthorize, autoAuth } = useAuth();
   const { supportedTokens } = useTokens();
+  const { myReferredShops, fetchMyReferredShops } = useShops();
   const navigate = useNavigate();
 
   const [pseudonym] = createResource(identity, (i) => i.getPseudonym());
@@ -26,6 +29,7 @@ export const MePage = () => {
     principalId()
       ? `${window.location.origin}${ROOT.$.shops.$.register.path}?referral=${principalId()!.toText()}`
       : undefined;
+  const shopIds = createMemo(() => Object.keys(myReferredShops));
 
   const handleLinkCopyClick = eventHandler(() => {
     navigator.clipboard.writeText(referralLink()!);
@@ -36,6 +40,20 @@ export const MePage = () => {
     on(autoAuth, (status) => {
       if (status === "fail" || status === "unavailable") {
         navigate(ROOT.path);
+      }
+    })
+  );
+
+  onMount(() => {
+    if (isAuthorized()) {
+      fetchMyReferredShops();
+    }
+  });
+
+  createEffect(
+    on(isAuthorized, (ready) => {
+      if (ready) {
+        fetchMyReferredShops();
       }
     })
   );
@@ -97,6 +115,18 @@ export const MePage = () => {
               </div>
             </div>
           </Show>
+        </div>
+
+        <div class="flex flex-col gap-4">
+          <div class="flex flex-col gap-1">
+            <p class="text-white font-semibold text-2xl">Referred Shops</p>
+          </div>
+
+          <div class="flex flex-col gap-4">
+            <For each={shopIds()} fallback={<p class="text-sm text-gray-120">Nothing here yet :(</p>}>
+              {(shopId) => <ReferredShop info={myReferredShops[shopId]!} />}
+            </For>
+          </div>
         </div>
       </div>
     </Page>

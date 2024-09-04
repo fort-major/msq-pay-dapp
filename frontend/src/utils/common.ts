@@ -82,9 +82,7 @@ export function avatarSrcFromPrincipal(id: Principal) {
   return `data:image/svg+xml;base64,${svg}`;
 }
 
-export function createLocalStorageSignal<T extends unknown>(
-  key: string
-): [Accessor<T | undefined>, Setter<T>] {
+export function createLocalStorageSignal<T extends unknown>(key: string): [Accessor<T | undefined>, Setter<T>] {
   const storage = window.localStorage;
   const stored = storage.getItem(key);
   const initialValue: T | undefined = stored ? fromCBOR(stored) : undefined;
@@ -106,3 +104,5 @@ export function createLocalStorageSignal<T extends unknown>(
 
   return [value, newSetValue as Setter<T>];
 }
+
+export const nowNs = () => BigInt(Date.now()) * 1000_0000n;

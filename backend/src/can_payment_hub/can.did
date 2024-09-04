@@ -2,15 +2,20 @@ type Account = record { owner : principal; subaccount : opt blob };
 type AddSupportedTokenRequest = record { token : Token };
 type CreateInvoiceRequest = record { shop_id : nat64; qty_usd : nat };
 type CreateInvoiceResponse = record { invoice_id : blob };
+type EDs = record { val : nat; decimals : nat8 };
 type GetExchangeRatesRequest = record { timestamp : nat64 };
 type GetExchangeRatesResponse = record { rates : opt vec record { text; nat } };
 type GetInvoiceRequest = record { invoice_id : blob };
 type GetInvoiceResponse = record { invoice_opt : opt Invoice };
+type GetMyReferredShopsResponse = record { shops : vec ReferredShop };
 type GetMyShopsResponse = record { shops : vec Shop };
+type GetShopByIdRequest = record { id : nat64 };
+type GetShopByIdResponse = record { shop : opt PubShop };
 type GetSupportedTokensResponse = record { supported_tokens : vec Token };
 type InitArgs = record {
   fee_collector_account : opt Account;
   supported_tokens : vec Token;
+  should_mock_exchange_rates : bool;
 };
 type Invoice = record {
   id : blob;
@@ -23,13 +28,27 @@ type Invoice = record {
 };
 type InvoiceStatus = variant {
   Paid : record {
-    qty : nat;
+    qty : EDs;
     token_id : principal;
     timestamp : nat64;
-    exchange_rate : nat;
+    exchange_rate : EDs;
   };
   VerifyPayment;
   Created : record { ttl : nat8 };
+};
+type PubShop = record {
+  id : nat64;
+  icon_base64 : text;
+  name : text;
+  description : text;
+};
+type ReferredShop = record {
+  id : nat64;
+  icon_base64 : text;
+  referral : principal;
+  referral_earnings_usd : nat;
+  name : text;
+  description : text;
 };
 type RegisterShopRequest = record {
   icon_base64 : text;
@@ -44,18 +63,19 @@ type Result = variant { Ok : Invoice; Err : text };
 type Shop = record {
   id : nat64;
   icon_base64 : text;
+  referral : opt principal;
   owner : principal;
   name : text;
   description : text;
+  total_earned_usd : nat;
   invoice_creators : vec principal;
-  referal : opt principal;
 };
 type Token = record {
   id : principal;
-  fee : nat;
-  decimals : nat8;
+  fee : EDs;
   ticker : text;
   logo_src : text;
+  xrc_ticker : text;
 };
 type UpdateShopRequest = record {
   id : nat64;
@@ -85,7 +105,9 @@ service : (InitArgs) -> {
       GetExchangeRatesResponse,
     ) query;
   get_invoice : (GetInvoiceRequest) -> (GetInvoiceResponse) query;
+  get_my_referred_shops : (record {}) -> (GetMyReferredShopsResponse) query;
   get_my_shops : (record {}) -> (GetMyShopsResponse) query;
+  get_shop_by_id : (GetShopByIdRequest) -> (GetShopByIdResponse) query;
   get_supported_tokens : (record {}) -> (GetSupportedTokensResponse) query;
   register_shop : (RegisterShopRequest) -> (RegisterShopResponse);
   remove_supported_token : (RemoveSupportedTokenRequest) -> (record {});
