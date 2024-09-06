@@ -10,16 +10,13 @@ use ic_cdk::{
 };
 use ic_e8s::d::EDs;
 use icrc_ledger_types::icrc1::{account::Account, transfer::TransferArg};
+use msq_pay_types::{
+    CreateInvoiceRequest, CreateInvoiceResponse, GetInvoiceRequest, GetInvoiceResponse,
+    InvoiceStatus, VerifyPaymentRequest, VerifyPaymentResponse,
+};
 use serde::Deserialize;
 use shared::{
     exchange_rates::api::{GetExchangeRatesRequest, GetExchangeRatesResponse},
-    invoices::{
-        api::{
-            CreateInvoiceRequest, CreateInvoiceResponse, GetInvoiceRequest, GetInvoiceResponse,
-            VerifyPaymentRequest, VerifyPaymentResponse,
-        },
-        types::InvoiceStatus,
-    },
     payment_hub::state::State,
     shops::api::{
         GetMyReferredShopsRequest, GetMyReferredShopsResponse, GetMyShopsRequest,

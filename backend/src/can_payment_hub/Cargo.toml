@@ -21,3 +21,4 @@ chrono = { workspace = true }
 futures = { workspace = true }
 ic-xrc-types = { workspace = true }
 ic-e8s = { workspace = true }
+msq_pay_types = { path = "../payment_hub_types" }

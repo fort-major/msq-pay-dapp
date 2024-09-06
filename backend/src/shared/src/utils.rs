@@ -15,7 +15,6 @@ pub const SHOP_ID_SUBACCOUNT_DOMAIN: &[u8] = b"msq-shop-id-subaccount";
 pub const EXCHANGE_RATES_CANISTER_ID: &str = "uf6dk-hyaaa-aaaaq-qaaaq-cai";
 
 pub type Timestamp = u64;
-pub type InvoiceId = [u8; 32];
 pub type ShopId = u64;
 pub type TokenId = Principal;
 

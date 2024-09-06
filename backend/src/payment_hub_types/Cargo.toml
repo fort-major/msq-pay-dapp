@@ -8,6 +8,5 @@ edition = "2021"
 [dependencies]
 candid = { workspace = true }
 serde = { workspace = true }
-shared = { path = "../shared" }
 ic-cdk = { workspace = true }
 ic-e8s = { workspace = true }

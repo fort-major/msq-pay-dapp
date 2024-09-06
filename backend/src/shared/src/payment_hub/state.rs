@@ -4,12 +4,13 @@ use candid::CandidType;
 use ic_e8s::d::EDs;
 use ic_xrc_types::ExchangeRate;
 use icrc_ledger_types::icrc1::account::Account;
+use msq_pay_types::InvoiceStatus;
 use num_bigint::BigUint;
 use serde::Deserialize;
 
 use crate::{
     exchange_rates::{state::ExchangeRatesState, types::Ticker},
-    invoices::{state::InvoicesState, types::InvoiceStatus},
+    invoices::state::InvoicesState,
     shops::state::ShopsState,
     supported_tokens::state::SupportedTokensState,
     utils::{Timestamp, RECYCLING_TTL},

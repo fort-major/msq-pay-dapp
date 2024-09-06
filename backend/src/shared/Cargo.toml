@@ -17,6 +17,7 @@ lazy_static = { workspace = true }
 tinystr = "0.7"
 ic-xrc-types = { workspace = true }
 ic-e8s = { workspace = true }
+msq_pay_types = { path = "../payment_hub_types" }
 
 [build-dependencies]
 dotenv = "0.15"
