@@ -1,13 +1,13 @@
 use std::collections::{hash_map::Entry, BTreeMap, HashMap};
 
 use candid::CandidType;
+use ic_e8s::d::EDs;
 use ic_xrc_types::ExchangeRate;
 use icrc_ledger_types::icrc1::account::Account;
 use num_bigint::BigUint;
 use serde::Deserialize;
 
 use crate::{
-    e8s::EDs,
     exchange_rates::{state::ExchangeRatesState, types::Ticker},
     invoices::{state::InvoicesState, types::InvoiceStatus},
     shops::state::ShopsState,

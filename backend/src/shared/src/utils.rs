@@ -3,7 +3,7 @@ use icrc_ledger_types::icrc1::account::Account;
 use serde::Deserialize;
 use sha2::Digest;
 
-use crate::e8s::EDs;
+use ic_e8s::d::EDs;
 
 pub const USD_DECIMALS: u8 = 8;
 pub const DEFAULT_TTL: u8 = 1;

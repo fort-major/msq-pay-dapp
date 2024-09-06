@@ -1,15 +1,13 @@
 use std::collections::{hash_map::Entry, BTreeMap, BTreeSet, HashMap};
 
 use candid::{CandidType, Principal};
+use ic_e8s::c::E8s;
 use serde::Deserialize;
 use sha2::Digest;
 
-use crate::{
-    e8s::E8s,
-    utils::{
-        calc_shop_subaccount, InvoiceId, ShopId, Timestamp, TransferTxn, DEFAULT_TTL,
-        ID_GENERATION_DOMAIN, MEMO_GENERATION_DOMAIN,
-    },
+use crate::utils::{
+    calc_shop_subaccount, InvoiceId, ShopId, Timestamp, TransferTxn, DEFAULT_TTL,
+    ID_GENERATION_DOMAIN, MEMO_GENERATION_DOMAIN,
 };
 
 use super::types::{Invoice, InvoiceStatus};

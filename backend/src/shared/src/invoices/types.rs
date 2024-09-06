@@ -1,10 +1,8 @@
 use candid::{CandidType, Principal};
+use ic_e8s::{c::E8s, d::EDs};
 use serde::Deserialize;
 
-use crate::{
-    e8s::{E8s, EDs},
-    utils::{InvoiceId, ShopId, Timestamp, TokenId},
-};
+use crate::utils::{InvoiceId, ShopId, Timestamp, TokenId};
 
 #[derive(CandidType, Deserialize, Clone, Debug)]
 pub enum InvoiceStatus {

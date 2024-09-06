@@ -1,13 +1,11 @@
-use std::collections::{
-    btree_map::{Entry},
-    BTreeMap, BTreeSet,
-};
+use std::collections::{btree_map::Entry, BTreeMap, BTreeSet};
 
 use candid::{CandidType, Principal};
 
+use ic_e8s::c::E8s;
 use serde::Deserialize;
 
-use crate::{e8s::E8s, utils::ShopId};
+use crate::utils::ShopId;
 
 use super::types::{ReferredShop, Shop};
 

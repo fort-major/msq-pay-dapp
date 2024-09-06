@@ -1,10 +1,11 @@
 use std::collections::BTreeSet;
 
 use candid::{CandidType, Nat, Principal};
+use ic_e8s::c::E8s;
 use icrc_ledger_types::icrc1::{account::Account, transfer::Memo};
 use serde::Deserialize;
 
-use crate::{e8s::E8s, utils::ShopId};
+use crate::utils::ShopId;
 
 use super::types::{PubShop, ReferredShop, Shop};
 

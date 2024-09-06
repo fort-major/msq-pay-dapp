@@ -20,3 +20,4 @@ num-bigint = { workspace = true }
 chrono = { workspace = true }
 futures = { workspace = true }
 ic-xrc-types = { workspace = true }
+ic-e8s = { workspace = true }

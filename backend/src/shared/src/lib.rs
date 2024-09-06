@@ -3,7 +3,6 @@ use env::{CAN_INVOICE_HISTORY_CANISTER_ID, CAN_PAYMENT_HUB_CANISTER_ID, CAN_ROOT
 use lazy_static::lazy_static;
 use serde::Deserialize;
 
-pub mod e8s;
 mod env;
 pub mod exchange_rates;
 pub mod invoice_history;

@@ -1,7 +1,8 @@
 use candid::CandidType;
+use ic_e8s::c::E8s;
 use serde::Deserialize;
 
-use crate::{e8s::E8s, utils::Timestamp};
+use crate::utils::Timestamp;
 
 use super::types::Ticker;
 

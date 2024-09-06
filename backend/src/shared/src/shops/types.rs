@@ -1,9 +1,10 @@
 use std::collections::BTreeSet;
 
 use candid::{CandidType, Principal};
+use ic_e8s::c::E8s;
 use serde::Deserialize;
 
-use crate::{e8s::E8s, utils::ShopId};
+use crate::utils::ShopId;
 
 #[derive(CandidType, Deserialize, Clone)]
 pub struct Shop {

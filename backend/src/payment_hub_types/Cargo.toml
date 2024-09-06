@@ -1,0 +1,13 @@
+[package]
+name = "msq_pay_types"
+description = "Types for interacting with MSQ Pay - Internet Computer payment system"
+license = "MIT"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+candid = { workspace = true }
+serde = { workspace = true }
+shared = { path = "../shared" }
+ic-cdk = { workspace = true }
+ic-e8s = { workspace = true }

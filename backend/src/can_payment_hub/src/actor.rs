@@ -8,10 +8,10 @@ use ic_cdk::{
     storage::{stable_restore, stable_save},
     update,
 };
+use ic_e8s::d::EDs;
 use icrc_ledger_types::icrc1::{account::Account, transfer::TransferArg};
 use serde::Deserialize;
 use shared::{
-    e8s::EDs,
     exchange_rates::api::{GetExchangeRatesRequest, GetExchangeRatesResponse},
     invoices::{
         api::{

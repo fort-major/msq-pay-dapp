@@ -11,6 +11,7 @@ use ic_cdk::{
     call,
 };
 use ic_cdk_timers::set_timer;
+use ic_e8s::d::EDs;
 use ic_xrc_types::{
     Asset, AssetClass, ExchangeRate, ExchangeRateMetadata, GetExchangeRateRequest,
     GetExchangeRateResult,
@@ -24,7 +25,6 @@ use icrc_ledger_types::{
     icrc3::blocks::{BlockWithId, GetBlocksRequest, GetBlocksResult},
 };
 use shared::{
-    e8s::EDs,
     supported_tokens::types::Token,
     utils::{Timestamp, TransferTxn, EXCHANGE_RATES_CANISTER_ID},
 };
@@ -53,7 +53,7 @@ pub async fn fetch_exchange_rates() -> Vec<ExchangeRate> {
     if should_mock {
         return tickers
             .into_iter()
-            .map(|(ticker, xrc_ticker)| ExchangeRate {
+            .map(|(ticker, _xrc_ticker)| ExchangeRate {
                 base_asset: Asset {
                     symbol: ticker.0.to_string(),
                     class: AssetClass::Cryptocurrency,

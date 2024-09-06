@@ -3,6 +3,7 @@ members = [
     "backend/src/can_payment_hub",
     "backend/src/can_invoice_history",
     "backend/src/shared",
+    "backend/src/payment_hub_types",
 ]
 resolver = "2"
 
@@ -25,3 +26,4 @@ futures = { version = "0.3", default-features = false }
 sha2 = "0.10"
 lazy_static = "1.4"
 ic-xrc-types = "1.2"
+ic-e8s = "0.1"

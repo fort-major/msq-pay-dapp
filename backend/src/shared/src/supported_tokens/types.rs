@@ -1,7 +1,8 @@
 use candid::CandidType;
 use serde::Deserialize;
 
-use crate::{e8s::EDs, exchange_rates::types::Ticker, utils::TokenId};
+use crate::{exchange_rates::types::Ticker, utils::TokenId};
+use ic_e8s::d::EDs;
 
 #[derive(CandidType, Deserialize, Debug, Clone)]
 pub struct Token {
