@@ -4,8 +4,9 @@ import { ErrorCode, err, logInfo } from "../utils/error";
 import { Identity, Agent } from "@dfinity/agent";
 import { MsqClient, MsqIdentity } from "@fort-major/msq-client";
 import { makeAgent, makeAnonymousAgent } from "../utils/backend";
-import { useNavigate } from "@solidjs/router";
-import { ROOT } from "@/routes";
+
+export const MSQ_ORIGIN = import.meta.env.MODE === "ic" ? "https://msq.tech" : "http://localhost:8000";
+export const MSQ_SNAP_ID = import.meta.env.MODE === "ic" ? "npm:@fort-major/msq" : "local:http://localhost:8081";
 
 export interface IAuthStoreContext {
   authorize: () => Promise<boolean>;
@@ -20,7 +21,6 @@ export interface IAuthStoreContext {
   isReadyToFetch: Accessor<boolean>;
   assertReadyToFetch: () => never | void;
   assertAuthorized: () => never | void;
-  autoAuth: () => TAutoAuthState;
 
   disabled: Accessor<boolean>;
   disable: () => void;
@@ -47,26 +47,12 @@ export function AuthStore(props: IChildren) {
   const [agent, setAgent] = createSignal<Agent | undefined>();
   const [anonymousAgent, setAnonymousAgent] = createSignal<Agent | undefined>();
   const [disabled, setDisabled] = createSignal(false);
-  const [autoAuth, setAutoAuth] = createSignal<TAutoAuthState>("attepting");
 
   onMount(async () => {
     makeAnonymousAgent().then((a) => setAnonymousAgent(a));
 
     if (MsqClient.isSafeToResume()) {
-      try {
-        await authorize();
-        setAutoAuth("success");
-      } catch (e) {
-        setAutoAuth("fail");
-
-        throw e;
-      }
-    } else {
-      if (!isAuthorized()) {
-        setAutoAuth("unavailable");
-      } else {
-        setAutoAuth("success");
-      }
+      await authorize();
     }
   });
 
@@ -88,7 +74,10 @@ export function AuthStore(props: IChildren) {
   };
 
   const authorize: IAuthStoreContext["authorize"] = async () => {
-    const result = await MsqClient.createAndLogin();
+    const result = await MsqClient.createAndLogin({
+      msqOrigin: MSQ_ORIGIN,
+      snapId: MSQ_SNAP_ID,
+    });
 
     if ("Err" in result) {
       err(ErrorCode.AUTH, result.Err);
@@ -150,7 +139,6 @@ export function AuthStore(props: IChildren) {
         disabled,
         disable: () => setDisabled(true),
         enable: () => setDisabled(false),
-        autoAuth,
       }}
     >
       {props.children}

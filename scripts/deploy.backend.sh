@@ -65,7 +65,7 @@ dfx deploy --network=$network payment_hub --argument "( \
             owner = principal \"qz32s-aqaaa-aaaag-alfya-cai\"; \
             subaccount = null; \
         }; \
-        should_mock_exchange_rates = true; \
+        should_mock_exchange_rates = false; \
     } \
 )"
 

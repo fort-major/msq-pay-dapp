@@ -16,7 +16,7 @@ import { eventHandler } from "@utils/security";
 import { createEffect, createMemo, createResource, For, on, onMount, Show } from "solid-js";
 
 export const MePage = () => {
-  const { isAuthorized, identity, deauthorize, autoAuth } = useAuth();
+  const { isAuthorized, identity, deauthorize } = useAuth();
   const { supportedTokens } = useTokens();
   const { myReferredShops, fetchMyReferredShops } = useShops();
   const navigate = useNavigate();
@@ -36,11 +36,13 @@ export const MePage = () => {
     logInfo("Copied!");
   });
 
+  onMount(() => {
+    if (!isAuthorized()) navigate(ROOT.path);
+  });
+
   createEffect(
-    on(autoAuth, (status) => {
-      if (status === "fail" || status === "unavailable") {
-        navigate(ROOT.path);
-      }
+    on(isAuthorized, (ready) => {
+      if (!ready) navigate(ROOT.path);
     })
   );
 

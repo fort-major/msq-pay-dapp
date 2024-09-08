@@ -7,20 +7,22 @@ import { A, useNavigate } from "@solidjs/router";
 import { useAuth } from "@store/auth";
 import { useShops } from "@store/shops";
 import { COLORS } from "@utils/colors";
-import { createEffect, createMemo, For, on } from "solid-js";
+import { createEffect, createMemo, For, on, onMount } from "solid-js";
 
 export const ShopsPage = () => {
-  const { autoAuth } = useAuth();
+  const { isAuthorized } = useAuth();
   const { myShops } = useShops();
   const navigate = useNavigate();
 
   const shopIds = createMemo(() => Object.keys(myShops));
 
+  onMount(() => {
+    if (!isAuthorized()) navigate(ROOT.path);
+  });
+
   createEffect(
-    on(autoAuth, (status) => {
-      if (status === "fail" || status === "unavailable") {
-        navigate(ROOT.path);
-      }
+    on(isAuthorized, (ready) => {
+      if (!ready) navigate(ROOT.path);
     })
   );
 

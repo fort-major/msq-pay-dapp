@@ -1,4 +1,10 @@
 {
+  "frontend": {
+    "ic": "yriyg-3iaaa-aaaag-alp6a-cai"
+  },
+  "invoice_history": {
+    "ic": "yepjl-2aaaa-aaaag-alp5q-cai"
+  },
   "payment_hub": {
     "ic": "prlga-2iaaa-aaaak-akp4a-cai"
   }
