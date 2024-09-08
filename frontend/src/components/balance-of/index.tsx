@@ -44,6 +44,7 @@ export const BalanceOf = (props: IBalanceOfProps) => {
     if (!isAuthorized()) return;
 
     if (!balance()) {
+      console.log("fetching balance");
       fetchBalanceOf(props.tokenId, props.owner, props.subaccount);
     }
   });

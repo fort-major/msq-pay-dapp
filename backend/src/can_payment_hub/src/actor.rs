@@ -31,7 +31,7 @@ use shared::{
         },
         types::Token,
     },
-    utils::calc_shop_subaccount,
+    utils::{calc_shop_subaccount, ShopId},
 };
 use timers::init_timers;
 use utils::{
@@ -94,7 +94,7 @@ fn get_exchange_rates(req: GetExchangeRatesRequest) -> GetExchangeRatesResponse 
     let rates = STATE.with_borrow(|it| {
         Some(
             it.exchange_rates
-                .get_rates(req.timestamp)?
+                .get_rates(req.timestamp.unwrap_or(it.exchange_rates.last_updated_at))?
                 .iter()
                 .map(|(k, v)| (k.clone(), v.clone()))
                 .collect::<Vec<_>>(),
@@ -194,16 +194,16 @@ async fn verify_payment(req: VerifyPaymentRequest) -> VerifyPaymentResponse {
         }),
         // if succeed, maybe delete outdated and return the invoice
         Ok((invoice, should_delete_outdated)) => {
-            // if the active invoice list is empty now - delete the outdated exchange rates
-            if should_delete_outdated {
-                STATE.with_borrow_mut(|s| {
+            STATE.with_borrow_mut(|s| {
+                // if the active invoice list is empty now - delete the outdated exchange rates
+                if should_delete_outdated {
                     s.exchange_rates
                         .delete_outdated(&invoice.exchange_rates_timestamp);
+                }
 
-                    let shop = s.shops.shops.get_mut(&invoice.shop_id).unwrap();
-                    shop.total_earned_usd += &invoice.qty_usd;
-                });
-            }
+                let shop = s.shops.shops.get_mut(&invoice.shop_id).unwrap();
+                shop.total_earned_usd += &invoice.qty_usd;
+            });
 
             Ok(invoice)
         }
@@ -270,6 +270,11 @@ pub fn get_shop_by_id(req: GetShopByIdRequest) -> GetShopByIdResponse {
     GetShopByIdResponse { shop }
 }
 
+#[query]
+pub fn get_shop_subaccount(id: ShopId) -> [u8; 32] {
+    calc_shop_subaccount(id)
+}
+
 #[update]
 pub async fn withdraw_profit(req: WithdrawProfitRequest) -> WithdrawProfitResponse {
     // TODO: validate request
@@ -298,7 +303,10 @@ pub async fn withdraw_profit(req: WithdrawProfitRequest) -> WithdrawProfitRespon
     let qty = req.qty.to_dynamic().to_decimals(system_fee.decimals);
 
     if qty < min_qty {
-        panic!("Insufficient funds");
+        panic!(
+            "Insufficient funds: expected at least {}, actual {}",
+            min_qty, qty
+        );
     }
 
     let (fee_collector_account_opt, referral_opt) = STATE.with_borrow(|s| {

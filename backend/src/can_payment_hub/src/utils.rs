@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use candid::{Nat, Principal};
-use futures::{future::join_all, FutureExt};
+use futures::FutureExt;
 use ic_cdk::{
     api::{
         call::{call_with_payment, CallResult},
@@ -79,7 +79,9 @@ pub async fn fetch_exchange_rates() -> Vec<ExchangeRate> {
 
     let xrc_id = Principal::from_text(EXCHANGE_RATES_CANISTER_ID).expect("Invalid xrc canister id");
 
-    let futures = tickers.into_iter().map(|(ticker, xrc_ticker)| {
+    let mut results = Vec::new();
+
+    for (ticker, xrc_ticker) in tickers {
         let args = GetExchangeRateRequest {
             base_asset: Asset {
                 symbol: xrc_ticker.0.to_string(),
@@ -94,7 +96,7 @@ pub async fn fetch_exchange_rates() -> Vec<ExchangeRate> {
 
         let base_symbol = ticker.0.to_string();
 
-        call_with_payment::<(GetExchangeRateRequest,), (GetExchangeRateResult,)>(
+        let res = call_with_payment::<(GetExchangeRateRequest,), (GetExchangeRateResult,)>(
             xrc_id,
             "get_exchange_rate",
             (args,),
@@ -113,13 +115,14 @@ pub async fn fetch_exchange_rates() -> Vec<ExchangeRate> {
                 _ => None,
             }
         })
-    });
+        .await;
 
-    join_all(futures)
-        .await
-        .into_iter()
-        .filter_map(|it| it)
-        .collect()
+        if let Some(result) = res {
+            results.push(result);
+        }
+    }
+
+    results
 }
 
 #[derive(Clone, Copy)]
@@ -140,7 +143,7 @@ impl ICRC1CanisterClient {
     }
 
     pub async fn icrc3_get_blocks(&self, arg: GetBlocksRequest) -> CallResult<(GetBlocksResult,)> {
-        call(self.canister_id, "icrc3_get_blocks", (arg,)).await
+        call(self.canister_id, "icrc3_get_blocks", (vec![arg],)).await
     }
 
     pub async fn find_block(&self, idx: Nat) -> Result<BlockWithId, String> {
@@ -212,15 +215,6 @@ pub fn icrc3_block_to_transfer_txn(
                 })
                 .unwrap_or(false);
 
-            let fee = block_fields
-                .get("fee")
-                .map(|it| match it {
-                    ICRC3Value::Nat(v) => Some(v),
-                    _ => None,
-                })
-                .ok_or("No 'fee' field found in block")?
-                .ok_or("Invalid 'fee' block field")?;
-
             let tx = block_fields
                 .get("tx")
                 .ok_or("No 'tx' field found in block".to_string())?;
@@ -282,30 +276,32 @@ pub fn icrc3_block_to_transfer_txn(
                     let from_val = tx_fields
                         .get("from")
                         .ok_or("The block contains no 'from' field".to_string())?;
+
                     let from = match from_val {
                         ICRC3Value::Array(from_arr) => {
                             let from_owner_val = from_arr
                                 .get(0)
                                 .ok_or("No sender principal found in the block".to_string())?;
-                            let from_subaccount_val = from_arr
-                                .get(1)
-                                .ok_or("No sender subaccount found in the block".to_string())?;
+                            let from_subaccount = from_arr.get(1).map(|it| {
+                                let from_subaccount_slice = match it {
+                                    ICRC3Value::Blob(b) => b.as_slice(),
+                                    _ => unreachable!("Invalid 'from_subaccount' field"),
+                                };
+
+                                let mut from_subaccount = [0u8; 32];
+                                from_subaccount.copy_from_slice(&from_subaccount_slice);
+
+                                from_subaccount
+                            });
 
                             let from_owner = match from_owner_val {
                                 ICRC3Value::Blob(b) => Principal::from_slice(b.as_slice()),
                                 _ => return Err("Invalid 'from_owner' field".to_string()),
                             };
-                            let from_subaccount_slice = match from_subaccount_val {
-                                ICRC3Value::Blob(b) => b.as_slice(),
-                                _ => return Err("Invalid 'from_subaccount' field".to_string()),
-                            };
-
-                            let mut from_subaccount = [0u8; 32];
-                            from_subaccount.copy_from_slice(&from_subaccount_slice);
 
                             Account {
                                 owner: from_owner,
-                                subaccount: Some(from_subaccount),
+                                subaccount: from_subaccount,
                             }
                         }
                         _ => return Err("Invalid 'to' field".to_string()),
@@ -314,6 +310,7 @@ pub fn icrc3_block_to_transfer_txn(
                     let memo_val = tx_fields
                         .get("memo")
                         .ok_or("The block contains no 'memo' field".to_string())?;
+
                     let memo = match memo_val {
                         ICRC3Value::Blob(b) => {
                             let mut res = [0u8; 32];
@@ -327,7 +324,6 @@ pub fn icrc3_block_to_transfer_txn(
                     Ok(TransferTxn {
                         from,
                         to,
-                        fee: EDs::new(fee.0.clone(), token_decimals),
                         qty: EDs::new(amount.0.clone(), token_decimals),
                         token_id,
                         memo,

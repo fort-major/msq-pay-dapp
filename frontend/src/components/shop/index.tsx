@@ -14,31 +14,53 @@ import { useTokens } from "@store/tokens";
 import { COLORS } from "@utils/colors";
 import { logInfo } from "@utils/error";
 import { EDs } from "@utils/math";
-import { calcShopSubaccount } from "@utils/security";
 import { Result } from "@utils/types";
-import { createMemo, createResource, createSignal, For, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, on, onMount, Show } from "solid-js";
 
 export interface IShopProps {
   info: IMyShop;
 }
 
 export const Shop = (props: IShopProps) => {
-  const { supportedTokens, balanceOf, withdrawProfit } = useTokens();
+  const { supportedTokens, balanceOf, withdrawProfit, fetchShopSubaccount, shopSubaccounts } = useTokens();
   const { isAuthorized } = useAuth();
   const { updateShopInfo, fetchMyShops } = useShops();
 
   const [newInvoiceCreatorId, setNewInvoiceCreatorId] = createSignal(Result.Err<string>(""));
   const [transferOwnershipModalVisible, setTransferOwnershipModalVisible] = createSignal(false);
 
-  const [shopSubaccount] = createResource(() => calcShopSubaccount(props.info.id));
+  const shopSubaccount = () => shopSubaccounts[props.info.id.toString()];
   const shopAccountOwner = () => Principal.fromText(import.meta.env.VITE_PAYMENT_HUB_CANISTER_ID);
   const tokenIds = createMemo(() => Object.keys(supportedTokens));
 
+  onMount(() => {
+    if (!isAuthorized()) return;
+
+    const sub = shopSubaccount();
+    if (sub) return;
+
+    fetchShopSubaccount(props.info.id);
+  });
+
+  createEffect(
+    on(isAuthorized, (ready) => {
+      if (!ready) return;
+
+      const sub = shopSubaccount();
+      if (sub) return;
+
+      fetchShopSubaccount(props.info.id);
+    })
+  );
+
   const canWithdrawAny = () => {
+    const sub = shopSubaccount();
+    if (!sub) return false;
+
     for (let tokenIdStr in supportedTokens) {
       const info = supportedTokens[tokenIdStr]!;
 
-      const balance = balanceOf(info.id, shopAccountOwner(), shopSubaccount());
+      const balance = balanceOf(info.id, shopAccountOwner(), sub);
       if (balance === undefined) continue;
 
       if (EDs.new(balance, info.fee.decimals).ge(info.fee.mulNum(6n))) return true;
@@ -102,7 +124,7 @@ export const Shop = (props: IShopProps) => {
 
       logInfo(`Withdrawing ${info.ticker}`);
 
-      await withdrawProfit(props.info.id, info.id, b.sub(info.fee).val);
+      await withdrawProfit(props.info.id, info.id, b.sub(info.fee).toDecimals(8).val);
 
       logInfo(`Success!`);
     }
@@ -115,6 +137,10 @@ export const Shop = (props: IShopProps) => {
   const handleTransferOwnershipModalClose = () => {
     setTransferOwnershipModalVisible(false);
   };
+
+  onMount(() => {
+    console.log("shop", props.info);
+  });
 
   return (
     <>
@@ -184,15 +210,17 @@ export const Shop = (props: IShopProps) => {
           <p class="font-semibold text-white text-md">Balances</p>
           <div class="flex gap-10 items-start">
             <div class="flex gap-x-8 gap-y-2 flex-wrap">
-              <For each={tokenIds()}>
-                {(tokenId) => (
-                  <BalanceOf
-                    tokenId={Principal.fromText(tokenId)}
-                    owner={shopAccountOwner()}
-                    subaccount={shopSubaccount()}
-                  />
-                )}
-              </For>
+              <Show when={shopSubaccount()}>
+                <For each={tokenIds()}>
+                  {(tokenId) => (
+                    <BalanceOf
+                      tokenId={Principal.fromText(tokenId)}
+                      owner={shopAccountOwner()}
+                      subaccount={shopSubaccount()}
+                    />
+                  )}
+                </For>
+              </Show>
             </div>
             <Btn bgColor={COLORS.orange} text="Withdraw" disabled={!canWithdrawAny()} onClick={handleWithdrawClick} />
           </div>

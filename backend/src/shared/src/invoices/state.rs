@@ -1,7 +1,7 @@
 use std::collections::{hash_map::Entry, BTreeMap, BTreeSet, HashMap};
 
 use candid::{CandidType, Principal};
-use ic_e8s::c::E8s;
+use ic_e8s::{c::E8s, d::EDs};
 use msq_pay_types::{Invoice, InvoiceId, InvoiceStatus};
 use serde::Deserialize;
 use sha2::Digest;
@@ -128,10 +128,13 @@ impl InvoicesState {
 
         let actual_qty_usd = &rate_eds * &transfer_txn.qty;
 
-        if actual_qty_usd < expected_qty_usd {
+        let der = &expected_qty_usd / 100u64;
+        let min_actual_qty = &expected_qty_usd - &der;
+
+        if actual_qty_usd < min_actual_qty {
             return Err(format!(
-                "Insufficient transfer: expected ${}, actual ${}",
-                expected_qty_usd, actual_qty_usd
+                "Insufficient transfer: expected at least ${}, actual ${}",
+                min_actual_qty, actual_qty_usd
             ));
         }
 

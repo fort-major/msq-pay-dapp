@@ -18,17 +18,3 @@ export function eventHandler<E extends Event>(fn: (e: E) => void | Promise<void>
     Promise.resolve(fn(e)).catch((e) => console.error(ErrorCode.UNKNOWN, debugStringify(e)));
   };
 }
-
-function bufsLE(a: Uint8Array, b: Uint8Array) {
-  if (a.length != b.length) return false;
-  for (let i = 0; i < a.length; i++) if (a[i] > b[i]) return false;
-  return true;
-}
-
-export const SHOP_ID_SUBACCOUNT_DOMAIN = strToBytes("msq-shop-id-subaccount");
-
-export const calcShopSubaccount = async (id: ShopId): Promise<Uint8Array> => {
-  const buf = new Uint8Array([...SHOP_ID_SUBACCOUNT_DOMAIN, ...bigIntToBytes(id)]);
-
-  return await crypto.subtle.digest("SHA-256", buf).then((it) => new Uint8Array(it));
-};

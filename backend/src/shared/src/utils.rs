@@ -25,7 +25,6 @@ pub struct TransferTxn {
     pub qty: EDs,
     pub token_id: TokenId,
     pub memo: [u8; 32],
-    pub fee: EDs,
 }
 
 pub fn calc_shop_subaccount(shop_id: ShopId) -> [u8; 32] {

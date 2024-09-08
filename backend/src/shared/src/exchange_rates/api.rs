@@ -8,7 +8,7 @@ use super::types::Ticker;
 
 #[derive(CandidType, Deserialize)]
 pub struct GetExchangeRatesRequest {
-    pub timestamp: Timestamp,
+    pub timestamp: Option<Timestamp>,
 }
 
 #[derive(CandidType, Deserialize)]

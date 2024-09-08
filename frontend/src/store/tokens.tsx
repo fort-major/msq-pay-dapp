@@ -10,7 +10,6 @@ import { IcrcLedgerCanister, IcrcMetadataResponseEntries } from "@dfinity/ledger
 import { newPaymentHubActor, opt, optUnwrap } from "@utils/backend";
 import { Token } from "@/declarations/payment_hub/payment_hub.did";
 import { ShopId } from "./shops";
-import { calcShopSubaccount } from "@utils/security";
 import { nowNs } from "@utils/common";
 
 export type TPrincipalStr = string;
@@ -40,6 +39,9 @@ export interface ITokensStoreContext {
 
   exchangeRates: Store<Partial<Record<TTicker, E8s>>>;
   fetchExchangeRates: () => Promise<void>;
+
+  shopSubaccounts: Store<Partial<Record<string, Uint8Array>>>;
+  fetchShopSubaccount: (id: bigint) => Promise<void>;
 }
 
 const TokensContext = createContext<ITokensStoreContext>();
@@ -60,6 +62,7 @@ export function TokensStore(props: IChildren) {
   const [supportedTokens, setSupportedTokens] = createStore<ITokensStoreContext["supportedTokens"]>();
   const [balances, setBalances] = createStore<ITokensStoreContext["balances"]>();
   const [exchangeRates, setExchangeRates] = createStore<ITokensStoreContext["exchangeRates"]>();
+  const [shopSubaccounts, setShopSubaccounts] = createStore<ITokensStoreContext["shopSubaccounts"]>();
 
   createEffect(
     on(anonymousAgent, (a) => {
@@ -83,6 +86,8 @@ export function TokensStore(props: IChildren) {
     const tId = tokenId.toText();
     const oId = owner.toText();
     const sub = bytesToHex(orDefaultSubaccount(subaccount));
+
+    console.log("balance of", tId, sub, "==", balance);
 
     if (!balances[tId]) {
       setBalances(tId, {});
@@ -114,11 +119,21 @@ export function TokensStore(props: IChildren) {
     }
   };
 
+  const fetchShopSubaccount: ITokensStoreContext["fetchShopSubaccount"] = async (shopId: bigint) => {
+    const actor = newPaymentHubActor(agent()!);
+
+    const sub = (await actor.get_shop_subaccount(shopId)) as Uint8Array;
+
+    setShopSubaccounts(shopId.toString(), sub);
+  };
+
   const withdrawProfit: ITokensStoreContext["withdrawProfit"] = async (shopId, tokenId, qty) => {
     assertAuthorized();
 
+    const sub = shopSubaccounts[shopId.toString()];
+    if (!sub) return;
+
     const myId = identity()!.getPrincipal();
-    const shopSubaccount = await calcShopSubaccount(shopId);
 
     const actor = newPaymentHubActor(agent()!);
     const { block_idx } = await actor.withdraw_profit({
@@ -130,14 +145,14 @@ export function TokensStore(props: IChildren) {
     });
 
     fetchBalanceOf(tokenId, myId);
-    fetchBalanceOf(tokenId, Principal.fromText(import.meta.env.VITE_PAYMENT_HUB_CANISTER_ID), shopSubaccount);
+    fetchBalanceOf(tokenId, Principal.fromText(import.meta.env.VITE_PAYMENT_HUB_CANISTER_ID), sub);
   };
 
   const fetchExchangeRates: ITokensStoreContext["fetchExchangeRates"] = async () => {
     assertReadyToFetch();
 
     const actor = newPaymentHubActor(anonymousAgent()!);
-    const resp = await actor.get_exchange_rates({ timestamp: nowNs() });
+    const resp = await actor.get_exchange_rates({ timestamp: [] });
 
     const rates = optUnwrap(resp.rates);
 
@@ -162,6 +177,8 @@ export function TokensStore(props: IChildren) {
         withdrawProfit,
         exchangeRates,
         fetchExchangeRates,
+        shopSubaccounts,
+        fetchShopSubaccount,
       }}
     >
       {props.children}

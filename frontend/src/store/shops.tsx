@@ -5,7 +5,6 @@ import { newPaymentHubActor, opt, optUnwrap } from "../utils/backend";
 import { createStore, Store } from "solid-js/store";
 import { useAuth } from "./auth";
 import { Principal } from "@dfinity/principal";
-import { calcShopSubaccount } from "@utils/security";
 import { E8s } from "@utils/math";
 
 export type ShopId = bigint;
@@ -19,7 +18,6 @@ export interface IMyShop {
   description: string;
   invoiceCreators: Array<Principal>;
   referral?: Principal;
-  subaccount: Uint8Array;
   totalEarnedUsd: E8s;
 }
 
@@ -29,7 +27,6 @@ export interface IMyReferredShop {
   name: string;
   description: string;
   referral: Principal;
-  subaccount: Uint8Array;
   referralEarningsUsd: E8s;
 }
 
@@ -100,7 +97,6 @@ export function ShopsStore(props: IChildren) {
         owner: shop.owner,
         invoiceCreators: shop.invoice_creators,
         referral: optUnwrap(shop.referral),
-        subaccount: await calcShopSubaccount(shop.id),
         totalEarnedUsd: E8s.new(shop.total_earned_usd),
       };
 
@@ -121,7 +117,6 @@ export function ShopsStore(props: IChildren) {
         description: shop.description,
         iconBase64Src: shop.icon_base64,
         referral: shop.referral,
-        subaccount: await calcShopSubaccount(shop.id),
         referralEarningsUsd: E8s.new(shop.referral_earnings_usd),
       };
 
